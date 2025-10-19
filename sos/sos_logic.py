@@ -8,6 +8,12 @@ class InvalidBoardSizeError(ValueError):
     """raise if board size invalid"""
     #pass
 
+#radio button simple and general, default simple mode for gui
+SIMPLE = "simple"
+GENERAL = "general"
+MODES = ("simple", "general")
+DEFAULT_MODE = SIMPLE
+
 def validate_board_size(n: int) -> None:
     if not isinstance(n, int): #int checking
         raise InvalidBoardSizeError("Board size invalid")
@@ -15,6 +21,9 @@ def validate_board_size(n: int) -> None:
         raise InvalidBoardSizeError("Board must be at least 3")
     if n > MAX_N:
         raise InvalidBoardSizeError("Board must less than or 8")
+
+def start_default_mode() -> str:
+    return DEFAULT_MODE
 
 @dataclass #__init__
 class Board:
