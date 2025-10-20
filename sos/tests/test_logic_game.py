@@ -1,5 +1,8 @@
 import unittest
-from sos_logic import SIMPLE, GENERAL, MODES, DEFAULT_MODE, start_default_mode
+from unittest import TestCase
+
+from sos_logic import (SIMPLE, GENERAL, MODES, DEFAULT_MODE, start_default_mode, Game, Board, InvalidBoardSizeError,
+    InvalidMoveError, MIN_N, MAX_N, PLAYERS, default_starting_player)
 
 class TestGameMode(unittest.TestCase):
     def test_default_simple(self):
@@ -9,6 +12,36 @@ class TestGameMode(unittest.TestCase):
     def test_valid_modes(self):
         self.assertEqual(set(MODES), {SIMPLE, GENERAL})
         self.assertEqual(len(MODES), 2)
+
+class TestGameInit(unittest.TestCase):
+    def test_game_init(self):
+        g = Game(n=MIN_N, mode=SIMPLE, starting_player=2)
+        self.assertEqual(g.board.n, MIN_N)
+        self.assertIsInstance(g.board, Board)
+        self.assertEqual(g.current_player, 2)
+
+class TestGameCellAndMoves(unittest.TestCase):
+    def setUp(self):
+        self.g = Game(n=3, mode=SIMPLE, starting_player=default_starting_player)
+
+    def test_cell_empty_init(self):
+        self.assertTrue(self.g.cell_is_empty(0,0))
+        self.assertTrue(self.g.cell_is_empty(2,2))
+
+    def test_place_letter_and_switch_turn(self):
+        #player 1 S
+        self.g.place_letter(0, 0, "S")
+        self.assertEqual(self.g.board.grid[0][0], "S")
+        self.assertEqual(self.g.current_player, 2)  # switch
+        #player 2 o
+        self.g.place_letter(1, 1, "O")
+        self.assertEqual(self.g.board.grid[1][1], "O")
+        self.assertEqual(self.g.current_player, 1) #switch
+
+    def test_cannot_place_on_occupied_cell(self):
+        self.g.place_letter(0, 0, "S")
+        with self.assertRaises(InvalidMoveError):
+            self.g.place_letter(0, 0, "O")
 
 if __name__ == '__main__':
     unittest.main()

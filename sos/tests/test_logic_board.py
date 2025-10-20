@@ -20,5 +20,13 @@ class TestBoardSize(unittest.TestCase):
         with self.assertRaises(InvalidBoardSizeError):
             Board("5")
 
+class TestBoardInit(unittest.TestCase):
+    def test_cells_start_empty(self):
+        n = 5
+        b = Board(n)
+        for r in range(n):
+            for c in range(n):
+                self.assertIsNone(b.grid[r][c]), f"Expected None at ({r}, {c})"
+
 if __name__ == '__main__':
     unittest.main()
