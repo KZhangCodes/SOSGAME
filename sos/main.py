@@ -1,11 +1,8 @@
 #pyt5 entry
 
-"""import sys
-from PyQt5.QtWidgets import QApplication, QMainWindow
-
-class MainWindow(QMainWindow):
-    def __init__(self):
-        super().__init__()
+import sys
+from PyQt5.QtWidgets import QApplication
+from sos_gui import MainWindow
 
 def main():
     app = QApplication(sys.argv)
@@ -14,4 +11,4 @@ def main():
     sys.exit(app.exec_())
 
 if __name__ == '__main__':
-    main()"""
+    main()

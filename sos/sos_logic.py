@@ -41,6 +41,13 @@ class Board:
         validate_board_size(self.n)
         self.grid = [[None for _ in range(self.n)] for _ in range(self.n)] #list of lists grid with value none
 
+    def empty_cells_remaining(self):
+        for row in self.grid:
+            for cell in row:
+                if cell is None:
+                    return True
+        return False
+
 @dataclass
 class Game:
     n: int
@@ -67,8 +74,7 @@ class Game:
             raise ValueError("Invalid letter")
         if not self.cell_is_empty(row, col):
             raise InvalidMoveError("Cell is already occupied")
-        self.board.grid[row][col] = letter
-        self._switch_turns()
+        self.board.grid[row][col] = letter #place letter
 
     def _switch_turns(self) -> None:
         self.current_player = 2 if self.current_player == 1 else 1
