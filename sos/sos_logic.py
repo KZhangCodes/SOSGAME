@@ -19,7 +19,6 @@ default_starting_player = 1
 SIMPLE = "simple"
 GENERAL = "general"
 MODES = ("simple", "general")
-DEFAULT_MODE = SIMPLE
 
 def validate_board_size(n: int) -> None:
     if not isinstance(n, int): #int checking
@@ -29,9 +28,6 @@ def validate_board_size(n: int) -> None:
     if n > MAX_N:
         raise InvalidBoardSizeError("Board must less than or 8")
 
-def start_default_mode() -> str:
-    return DEFAULT_MODE
-
 @dataclass #__init__
 class Board:
     n: int
@@ -40,13 +36,6 @@ class Board:
     def __post_init__(self) -> None:
         validate_board_size(self.n)
         self.grid = [[None for _ in range(self.n)] for _ in range(self.n)] #list of lists grid with value none
-
-    def empty_cells_remaining(self):
-        for row in self.grid:
-            for cell in row:
-                if cell is None:
-                    return True
-        return False
 
 @dataclass
 class Game:
@@ -74,7 +63,9 @@ class Game:
             raise ValueError("Invalid letter")
         if not self.cell_is_empty(row, col):
             raise InvalidMoveError("Cell is already occupied")
+
         self.board.grid[row][col] = letter #place letter
+        self._switch_turns()
 
     def _switch_turns(self) -> None:
         self.current_player = 2 if self.current_player == 1 else 1
