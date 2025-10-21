@@ -3,7 +3,9 @@ from PyQt5.QtGui import QPainter, QPen, QFont
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QGroupBox, QRadioButton,
                              QSpinBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,)
 
-from sos_logic import Game, SIMPLE, GENERAL, InvalidMoveError
+from sos_logic import Game, SIMPLE, GENERAL, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
+    InvalidLetterError
+
 
 class GameBoard(QWidget):
 
@@ -20,7 +22,7 @@ class GameBoard(QWidget):
 
     def set_game(self, game):
         self._game = game #current game instance
-        side = game.n * self._cell + 2 * self._margin #widget based on board size
+        side = game.board_size * self._cell + 2 * self._margin #widget based on board size
         self.setMinimumSize(side, side)
         self.update() #repaint event, calls paintEvent()
 
@@ -29,45 +31,45 @@ class GameBoard(QWidget):
             return
         painter = QPainter(self)
 
-        n = self._game.n
+        board_size = self._game.board_size
         cell = self._cell
-        m = self._margin
-        size = n * cell
+        margin = self._margin
+        size = board_size * cell
 
         #border and grid lines
         pen = QPen(Qt.black)
         pen.setWidth(1)
         painter.setPen(pen)
-        painter.drawRect(m, m, size, size) #square border enclosing cells
-        for i in range(1, n):
-            x = m + i * cell #vertical line pos
-            painter.drawLine(x, m, x, m + size)
-            y = m + i * cell #hortizontal
-            painter.drawLine(m, y, m + size, y)
+        painter.drawRect(margin, margin, size, size) #square border enclosing cells
+        for i in range(1, board_size):
+            x = margin + i * cell #vertical line pos
+            painter.drawLine(x, margin, x, margin + size)
+            y = margin + i * cell #hortizontal
+            painter.drawLine(margin, y, margin + size, y)
 
         #draw letter for S and O
         font = QFont()
         font.setPointSize(18)
         painter.setFont(font)
-        for r in range(n): #value in position
-            for c in range(n):
+        for r in range(board_size): #value in position
+            for c in range(board_size):
                 value = self._game.board.grid[r][c]
                 if value:
-                    rect = QRect(m + c * cell, m + r * cell, cell, cell) #cell rectangle coord
+                    rect = QRect(margin + c * cell, margin + r * cell, cell, cell) #cell rectangle coord
                     painter.drawText(rect, Qt.AlignCenter, value)
     #mouse1 placement
     def mousePressEvent(self, event):
         if not self._game or event.button() != Qt.LeftButton:
             return
         cell = self._cell
-        m = self._margin
-        x = event.x() - m
-        y = event.y() - m
+        margin = self._margin
+        x = event.x() - margin
+        y = event.y() - margin
         if x < 0 or y < 0:
             return
         col = x // cell
         row = y // cell
-        if 0 <= row < self._game.n and 0 <= col < self._game.n:
+        if 0 <= row < self._game.board_size and 0 <= col < self._game.board_size:
             self.cell_clicked.emit(row,col)
 
 #main app window
@@ -87,7 +89,7 @@ class MainWindow(QMainWindow):
         layout_mode.addWidget(self.mode_general)
         mode_box.setLayout(layout_mode)
 
-        #board size range 3-8 default 3
+        #QSpinBox only allows values between 3-8 regardless of input, arrows wont go outside this range
         size_box = QGroupBox("Board Size")
         self.size_spin = QSpinBox()
         self.size_spin.setRange(3, 8)
@@ -165,11 +167,11 @@ class MainWindow(QMainWindow):
 
     #resets everything on start a new game, pass Game to Gameboard to draw empty grid
     def _start_new_game(self):
-        n = int(self.size_spin.value())
+        board_size = self.size_spin.value()
         mode = self._current_mode()
         try:
-            self.game = Game(n=n, mode=mode)
-        except Exception as e:
+            self.game = Game(board_size=board_size, mode=mode)
+        except (InvalidBoardSizeError, InvalidGameModeError) as e:
             QMessageBox.warning(self, "Invalid settings", str(e))
             return
         self.board_widget.set_game(self.game)
@@ -185,7 +187,7 @@ class MainWindow(QMainWindow):
         except InvalidMoveError as e:
             QMessageBox.information(self, "Invalid move", str(e))
             return
-        except ValueError as e:
+        except InvalidLetterError as e:
             QMessageBox.warning(self, "Invalid letter", str(e))
             return
 

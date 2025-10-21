@@ -2,7 +2,7 @@ import unittest
 from unittest import TestCase
 
 from sos_logic import (SIMPLE, GENERAL, MODES, Game, Board, InvalidBoardSizeError,
-    InvalidMoveError, MIN_N, MAX_N, PLAYERS, default_starting_player)
+    InvalidMoveError, MIN_N, MAX_N, PLAYERS, DEFAULT_STARTING_PLAYER,)
 
 class TestGameMode(unittest.TestCase):
 
@@ -12,14 +12,14 @@ class TestGameMode(unittest.TestCase):
 
 class TestGameInit(unittest.TestCase):
     def test_game_init(self):
-        g = Game(n=MIN_N, mode=SIMPLE, starting_player=2)
-        self.assertEqual(g.board.n, MIN_N)
+        g = Game(board_size=MIN_N, mode=SIMPLE, starting_player=2)
+        self.assertEqual(g.board.board_size, MIN_N)
         self.assertIsInstance(g.board, Board)
         self.assertEqual(g.current_player, 2)
 
 class TestGameCellAndMoves(unittest.TestCase):
     def setUp(self):
-        self.g = Game(n=3, mode=SIMPLE, starting_player=default_starting_player)
+        self.g = Game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
 
     def test_cell_empty_init(self):
         self.assertTrue(self.g.cell_is_empty(0,0))
