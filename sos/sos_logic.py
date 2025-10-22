@@ -41,7 +41,7 @@ def validate_board_size(board_size: int) -> None:
 def validate_mode(mode: str) -> str:
     if not isinstance(mode, str):
         raise InvalidGameModeError("Game mode must be string")
-    m = mode.strip().lower()
+    m = mode.strip().lower() #normalization
     if m not in MODES:
         raise InvalidGameModeError("Game mode must be Simple or General")
     return m

@@ -14,15 +14,15 @@ class GameBoard(QWidget):
     def __init__(self, parent=None):
         super().__init__(parent)
         self._game = None
-        self._cell = 35
+        self._cell_size = 35
         self._margin = 5
-        self.setMinimumSize(8 * self._cell + 2 * self._margin, 8 * self._cell + 2 * self._margin)
+        self.setMinimumSize(8 * self._cell_size + 2 * self._margin, 8 * self._cell_size + 2 * self._margin)
         #widget large enough for max size
         #
 
     def set_game(self, game):
         self._game = game #current game instance
-        side = game.board_size * self._cell + 2 * self._margin #widget based on board size
+        side = game.board_size * self._cell_size + 2 * self._margin #widget based on board size
         self.setMinimumSize(side, side)
         self.update() #repaint event, calls paintEvent()
 
@@ -32,7 +32,7 @@ class GameBoard(QWidget):
         painter = QPainter(self)
 
         board_size = self._game.board_size
-        cell = self._cell
+        cell = self._cell_size
         margin = self._margin
         size = board_size * cell
 
@@ -61,7 +61,7 @@ class GameBoard(QWidget):
     def mousePressEvent(self, event):
         if not self._game or event.button() != Qt.LeftButton:
             return
-        cell = self._cell
+        cell = self._cell_size
         margin = self._margin
         x = event.x() - margin
         y = event.y() - margin
@@ -112,8 +112,8 @@ class MainWindow(QMainWindow):
         board_wrap.addStretch(1)
 
         #s/o picker
-        self.p1_box, self.p1_s, self.p1_o = self._player_box("Player 1")
-        self.p2_box, self.p2_s, self.p2_o = self._player_box("Player 2")
+        self.p1_box, self.p1_s, self.p1_o = self._create_player_box("Player 1")
+        self.p2_box, self.p2_s, self.p2_o = self._create_player_box("Player 2")
         self.p1_s.setChecked(True)
         self.p2_s.setChecked(True)
         side_row = QHBoxLayout()
@@ -132,12 +132,12 @@ class MainWindow(QMainWindow):
         self.setCentralWidget(root)
 
         self.new_button.clicked.connect(self._start_new_game) #add start_new_game method
-        self.board_widget.cell_clicked.connect(self._handle_cell_clicked)
+        self.board_widget.cell_clicked.connect(self._on_cell_clicked)
 
         self._start_new_game()
 
     #s/o selection
-    def _player_box(self, title):
+    def _create_player_box(self, title):
         box = QGroupBox(title)
         s_radio = QRadioButton("S")
         o_radio = QRadioButton("O")
@@ -147,11 +147,11 @@ class MainWindow(QMainWindow):
         box.setLayout(v)
         return box, s_radio, o_radio
 
-    def _current_mode(self):
+    def _get_current_mode(self):
         return SIMPLE if self.mode_simple.isChecked() else GENERAL
 
     #return player s/o selection
-    def _current_player_letter(self):
+    def _get_current_player_letter(self):
         if not self.game: #default s
             return "S"
         if self.game.current_player == 1:
@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
     #resets everything on start a new game, pass Game to Gameboard to draw empty grid
     def _start_new_game(self):
         board_size = self.size_spin.value()
-        mode = self._current_mode()
+        mode = self._get_current_mode()
         try:
             self.game = Game(board_size=board_size, mode=mode)
         except (InvalidBoardSizeError, InvalidGameModeError) as e:
@@ -178,10 +178,10 @@ class MainWindow(QMainWindow):
         self._update_turn_label()
 
     #place s/o on clicked cell
-    def _handle_cell_clicked(self, row, col):
+    def _on_cell_clicked(self, row, col):
         if not self.game:
             return
-        letter = self._current_player_letter()
+        letter = self._get_current_player_letter()
         try:
             self.game.place_letter(row, col, letter)
         except InvalidMoveError as e:
