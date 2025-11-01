@@ -112,14 +112,14 @@ class MainWindow(QMainWindow):
         board_wrap.addStretch(1)
 
         #s/o picker
-        self.p1_box, self.p1_s, self.p1_o = self._create_player_box("Player 1")
-        self.p2_box, self.p2_s, self.p2_o = self._create_player_box("Player 2")
-        self.p1_s.setChecked(True)
-        self.p2_s.setChecked(True)
+        self.red_box, self.red_s, self.red_o = self._create_player_box("Red")
+        self.blue_box, self.blue_s, self.blue_o = self._create_player_box("Blue")
+        self.red_s.setChecked(True)
+        self.blue_s.setChecked(True)
         side_row = QHBoxLayout()
-        side_row.addWidget(self.p1_box)
+        side_row.addWidget(self.red_box)
         side_row.addLayout(board_wrap)
-        side_row.addWidget(self.p2_box)
+        side_row.addWidget(self.blue_box)
 
         self.turn_label = QLabel("Current turn: —") #current turn label
         self.turn_label.setAlignment(Qt.AlignCenter)
@@ -155,15 +155,17 @@ class MainWindow(QMainWindow):
         if not self.game: #default s
             return "S"
         if self.game.current_player == 1:
-            return "S" if self.p1_s.isChecked() else "O"
+            return "S" if self.red_s.isChecked() else "O"
         else:
-            return "S" if self.p2_s.isChecked() else "O"
+            return "S" if self.blue_s.isChecked() else "O"
 
     def _update_turn_label(self):
         if not self.game:
             self.turn_label.setText("Current turn: —")
+        elif self.game.current_player == 1:
+            self.turn_label.setText("Current turn: Red ")
         else:
-            self.turn_label.setText("Current turn: Player %d" % self.game.current_player)
+            self.turn_label.setText("Current turn: Blue")
 
     #resets everything on start a new game, pass Game to Gameboard to draw empty grid
     def _start_new_game(self):

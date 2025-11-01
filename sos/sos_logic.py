@@ -21,7 +21,9 @@ class OutOfBoundsError(InvalidMoveError):
     """raise if move out of bounds"""
 
 #radio button default player1
-PLAYERS = (1,2)
+RED_PLAYER = 1
+BLUE_PLAYER = 2
+PLAYERS = (RED_PLAYER, BLUE_PLAYER)
 DEFAULT_STARTING_PLAYER = 1
 
 #radio button simple and general, default simple mode for gui
@@ -91,7 +93,7 @@ class Game:
         self._switch_turns()
 
     def _switch_turns(self) -> None:
-        self.current_player = 2 if self.current_player == 1 else 1
+        self.current_player = BLUE_PLAYER if self.current_player == RED_PLAYER else RED_PLAYER
 
 
 
