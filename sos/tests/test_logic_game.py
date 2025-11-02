@@ -1,6 +1,6 @@
 import unittest
 
-from sos_logic import (SIMPLE, GENERAL, MODES, Game, Board,
+from sos_logic import (SIMPLE, GENERAL, MODES, start_game, Board,
     InvalidMoveError, MIN_N, DEFAULT_STARTING_PLAYER, InvalidLetterError, InvalidGameModeError,
                        OutOfBoundsError, validate_mode, RED_PLAYER, BLUE_PLAYER)
 
@@ -10,14 +10,14 @@ class TestGameMode(unittest.TestCase):
 
 class TestGameInit(unittest.TestCase):
     def test_game_init(self):
-        g = Game(board_size=MIN_N, mode=SIMPLE, starting_player=BLUE_PLAYER)
+        g = start_game(board_size=MIN_N, mode=SIMPLE, starting_player=BLUE_PLAYER)
         self.assertEqual(g.board.board_size, MIN_N)
         self.assertIsInstance(g.board, Board)
         self.assertEqual(g.current_player, BLUE_PLAYER)
 
 class TestGameCellAndMoves(unittest.TestCase):
     def setUp(self):
-        self.g = Game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
+        self.g = start_game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
 
     def test_cell_empty_init(self):
         self.assertTrue(self.g.cell_is_empty(0,0))
@@ -59,11 +59,11 @@ class TestInvalidStartingPlayer(unittest.TestCase):
         for bad_player in [0, 3, -1, None, "A"]:
             with self.subTest(bad_player=bad_player):
                 with self.assertRaises(ValueError):
-                    Game(board_size=3, mode=SIMPLE, starting_player=bad_player)
+                    start_game(board_size=3, mode=SIMPLE, starting_player=bad_player)
 
 class TestInvalidMovesAndLetters(unittest.TestCase):
     def setUp(self):
-        self.g = Game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
+        self.g = start_game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
 
     def test_out_of_bounds(self):
         with self.assertRaises(OutOfBoundsError):
@@ -79,7 +79,7 @@ class TestInvalidMovesAndLetters(unittest.TestCase):
 class TestInvalidMode(unittest.TestCase):
     def test_invalid_mode(self):
         with self.assertRaises(InvalidGameModeError):
-            Game(board_size=3, mode="SUDDEN_DEATH")
+            start_game(board_size=3, mode="SUDDEN_DEATH")
 
 if __name__ == '__main__':
     unittest.main()

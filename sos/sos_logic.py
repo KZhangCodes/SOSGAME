@@ -1,9 +1,5 @@
 from dataclasses import dataclass, field
 
-MIN_N = 3
-MAX_N = 8
-Cell = str | None #cell s/o or empty
-
 class InvalidBoardSizeError(ValueError):
     """raise if board size invalid"""
     #pass
@@ -19,6 +15,10 @@ class InvalidLetterError(ValueError):
 
 class OutOfBoundsError(InvalidMoveError):
     """raise if move out of bounds"""
+
+MIN_N = 3
+MAX_N = 8
+Cell = str | None #cell s/o or empty
 
 #radio button default player1
 RED_PLAYER = 1
@@ -66,23 +66,26 @@ class Board:
         self.grid = [[None for _ in range(self.board_size)] for _ in range(self.board_size)] #list of lists grid with value none
 
 @dataclass
-class Game:
-    board_size: int
+class BaseGame:
+    '''board_size: int
     mode: str
     starting_player: int = DEFAULT_STARTING_PLAYER
     board: Board = field(init=False)
-    current_player: int = field(init=False)
+    current_player: int = field(init=False)'''
 
     #checks independent of gui radio button constraints
-    def __post_init__(self) -> None:
-        self.mode = validate_mode(self.mode)
-        if self.starting_player not in PLAYERS:
+    def __init__(self, *, board_size: int, starting_player: int = DEFAULT_STARTING_PLAYER) -> None:
+        if starting_player not in PLAYERS:
             raise ValueError("Invalid player")
-        self.board = Board(self.board_size)
-        self.current_player = self.starting_player
+        self.board = Board(board_size)
+        self.board_size = board_size
+        self.current_player = starting_player
 
     def cell_is_empty(self, row: int, col: int) -> bool:
         return self.board.grid[row][col] is None
+
+    def _switch_turns(self) -> None:
+        self.current_player = BLUE_PLAYER if self.current_player == RED_PLAYER else RED_PLAYER
 
     def place_letter(self, row: int, col: int, letter:str) -> None:
         validate_position(self.board_size , row, col)
@@ -92,8 +95,27 @@ class Game:
         self.board.grid[row][col] = letter #place letter
         self._switch_turns()
 
-    def _switch_turns(self) -> None:
-        self.current_player = BLUE_PLAYER if self.current_player == RED_PLAYER else RED_PLAYER
+    def _after_move(self, row: int,col: int, letter:str) -> None:
+        self._switch_turns()
+
+class SimpleGame(BaseGame):
+    def _after_move(self, row: int, col: int, letter:str) -> None:
+        #win con
+        self._switch_turns()
+
+class GeneralGame(BaseGame):
+    def _after_move(self, row: int, col: int, letter:str) -> None:
+        #win con
+        self._switch_turns()
+
+def start_game(*, board_size: int, mode: str, starting_player: int = DEFAULT_STARTING_PLAYER) -> BaseGame:
+    m = validate_mode(mode)
+    if m == SIMPLE:
+        return SimpleGame(board_size=board_size, starting_player=starting_player)
+    if m == GENERAL:
+        return GeneralGame(board_size=board_size, starting_player=starting_player)
+    raise ValueError("Invalid mode")
+
 
 
 

@@ -3,7 +3,7 @@ from PyQt5.QtGui import QPainter, QPen, QFont
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QGroupBox, QRadioButton,
                              QSpinBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,)
 
-from sos_logic import Game, SIMPLE, GENERAL, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
+from sos_logic import start_game, SIMPLE, GENERAL, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
     InvalidLetterError
 
 
@@ -172,7 +172,7 @@ class MainWindow(QMainWindow):
         board_size = self.size_spin.value()
         mode = self._get_current_mode()
         try:
-            self.game = Game(board_size=board_size, mode=mode)
+            self.game = start_game(board_size=board_size, mode=mode)
         except (InvalidBoardSizeError, InvalidGameModeError) as e:
             QMessageBox.warning(self, "Invalid settings", str(e))
             return
