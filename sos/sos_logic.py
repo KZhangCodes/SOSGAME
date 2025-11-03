@@ -1,20 +1,16 @@
 from dataclasses import dataclass, field
+from abc import ABC, abstractmethod
 
 class InvalidBoardSizeError(ValueError):
-    """raise if board size invalid"""
-    #pass
-
+    pass
 class InvalidMoveError(ValueError):
-    """raise if move invalid"""
-
+    pass
 class InvalidGameModeError(ValueError):
-    """raise if game mode invalid"""
-
+    pass
 class InvalidLetterError(ValueError):
-    """raise if letter is not S or O"""
-
+    pass
 class OutOfBoundsError(InvalidMoveError):
-    """raise if move out of bounds"""
+    pass
 
 MIN_N = 3
 MAX_N = 8
@@ -48,9 +44,13 @@ def validate_mode(mode: str) -> str:
         raise InvalidGameModeError("Game mode must be Simple or General")
     return m
 
-def validate_letter(letter:str) -> None:
+def validate_letter(letter:str) -> str:
+    if not isinstance(letter, str):
+        raise InvalidLetterError("Letter must be string")
+    letter = letter.strip().upper()
     if letter not in ("S", "O"):
         raise InvalidLetterError("Letter must be S or O")
+    return letter
 
 def validate_position(board_size: int, row: int, col: int) -> None:
     if not (0 <= row < board_size and 0 <= col < board_size):
@@ -65,13 +65,14 @@ class Board:
         validate_board_size(self.board_size)
         self.grid = [[None for _ in range(self.board_size)] for _ in range(self.board_size)] #list of lists grid with value none
 
+    def is_empty(self, row: int, col: int) -> bool:
+        return self.grid[row][col] is None
+
 @dataclass
-class BaseGame:
-    '''board_size: int
-    mode: str
-    starting_player: int = DEFAULT_STARTING_PLAYER
+class BaseGame(ABC):
+    board_size: int
     board: Board = field(init=False)
-    current_player: int = field(init=False)'''
+    current_player: int
 
     #checks independent of gui radio button constraints
     def __init__(self, *, board_size: int, starting_player: int = DEFAULT_STARTING_PLAYER) -> None:
@@ -81,40 +82,43 @@ class BaseGame:
         self.board_size = board_size
         self.current_player = starting_player
 
-    def cell_is_empty(self, row: int, col: int) -> bool:
-        return self.board.grid[row][col] is None
+    '''def cell_is_empty(self, row: int, col: int) -> bool:
+        return self.board.grid[row][col] is None'''
 
     def _switch_turns(self) -> None:
         self.current_player = BLUE_PLAYER if self.current_player == RED_PLAYER else RED_PLAYER
 
     def place_letter(self, row: int, col: int, letter:str) -> None:
         validate_position(self.board_size , row, col)
-        validate_letter(letter)
-        if not self.cell_is_empty(row, col):
+        letter = validate_letter(letter)
+        if not self.board.is_empty(row, col):
             raise InvalidMoveError("Cell is already occupied")
         self.board.grid[row][col] = letter #place letter
+        self._after_move(row, col, letter)
         self._switch_turns()
 
+    @abstractmethod
     def _after_move(self, row: int,col: int, letter:str) -> None:
-        self._switch_turns()
+        ...
 
 class SimpleGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
         #win con
-        self._switch_turns()
+        pass
 
 class GeneralGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
         #win con
-        self._switch_turns()
+        pass
 
 def start_game(*, board_size: int, mode: str, starting_player: int = DEFAULT_STARTING_PLAYER) -> BaseGame:
     m = validate_mode(mode)
     if m == SIMPLE:
         return SimpleGame(board_size=board_size, starting_player=starting_player)
-    if m == GENERAL:
+    else:
         return GeneralGame(board_size=board_size, starting_player=starting_player)
-    raise ValueError("Invalid mode")
+
+
 
 
 

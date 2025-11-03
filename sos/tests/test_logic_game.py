@@ -20,8 +20,8 @@ class TestGameCellAndMoves(unittest.TestCase):
         self.g = start_game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
 
     def test_cell_empty_init(self):
-        self.assertTrue(self.g.cell_is_empty(0,0))
-        self.assertTrue(self.g.cell_is_empty(2,2))
+        self.assertTrue(self.g.board.is_empty(0,0))
+        self.assertTrue(self.g.board.is_empty(2,2))
 
     def test_place_letter_and_switch_turn(self):
         #red player S
