@@ -13,20 +13,22 @@ class InvalidLetterError(ValueError):
 class OutOfBoundsError(InvalidMoveError):
     pass
 
+#enum for player and mode
+class Player(IntEnum):
+    RED = 1
+    BLUE = 2
+
+class Mode(StrEnum):
+    SIMPLE = "simple"
+    GENERAL = "general"
+
 MIN_N = 3
 MAX_N = 8
 Cell = str | None #cell s/o or empty
 
-#radio button default player1
-RED_PLAYER = 1
-BLUE_PLAYER = 2
-PLAYERS = (RED_PLAYER, BLUE_PLAYER)
-DEFAULT_STARTING_PLAYER = 1
-
-#radio button simple and general, default simple mode for gui
-SIMPLE = "simple"
-GENERAL = "general"
-MODES = (SIMPLE, GENERAL)
+DEFAULT_STARTING_PLAYER = Player.RED
+PLAYERS = (Player.RED, Player.BLUE)
+MODES = (Mode.SIMPLE, Mode.GENERAL)
 
 #validations for separation of concerns (most constraint checks done by GUI)
 def validate_board_size(board_size: int) -> None:
@@ -37,13 +39,17 @@ def validate_board_size(board_size: int) -> None:
     if board_size > MAX_N:
         raise InvalidBoardSizeError("Board must less than or 8")
 
-def validate_mode(mode: str) -> str:
+def validate_mode(mode: str | Mode) -> Mode:
+    if isinstance(mode, Mode):
+        return mode
     if not isinstance(mode, str):
         raise InvalidGameModeError("Game mode must be string")
     m = mode.strip().lower() #normalization
-    if m not in MODES:
-        raise InvalidGameModeError("Game mode must be Simple or General")
-    return m
+    if m == Mode.SIMPLE.value:
+        return Mode.SIMPLE
+    if m == Mode.GENERAL.value:
+        return Mode.GENERAL
+    raise InvalidGameModeError("Game mode must be Simple or General")
 
 def validate_letter(letter:str) -> str:
     if not isinstance(letter, str):
@@ -57,11 +63,12 @@ def validate_position(board_size: int, row: int, col: int) -> None:
     if not (0 <= row < board_size and 0 <= col < board_size):
         raise OutOfBoundsError("Row/Column out of bounds")
 
+#completed sos segment
 @dataclass(frozen=True)
 class CompletedSOS:
     start: tuple[int, int] #endpoints
     end: tuple[int, int]
-    SOS_player: int #sos owner
+    player: Player #sos owner
 
 @dataclass #__init__
 class Board:
@@ -78,16 +85,16 @@ class Board:
     def is_full(self)-> bool:
         return all(cell is not None for row in self.grid for cell in row)
 
-
+#abstract base class for both simple and general - turn order, placing validation, sos line and completion tracking
 @dataclass
 class BaseGame(ABC):
     board_size: int
-    starting_player: int = DEFAULT_STARTING_PLAYER
+    starting_player: Player = DEFAULT_STARTING_PLAYER
 
     board: Board = field(init=False)
-    current_player: int = field(init=False)
+    current_player: Player = field(init=False)
     is_over: bool = field(default=False, init=False)
-    winner: int | None = field(default=None, init=False)
+    winner: Player | None = field(default=None, init=False)
     lines: list[CompletedSOS] = field(default_factory=list, init=False)
     red_score: int = field(default=0, init=False)
     blue_score: int = field(default=0, init=False)
@@ -103,7 +110,7 @@ class BaseGame(ABC):
         return self.board.grid[row][col] is None'''
 
     def _switch_turns(self) -> None:
-        self.current_player = BLUE_PLAYER if self.current_player == RED_PLAYER else RED_PLAYER
+        self.current_player = Player.BLUE if self.current_player == Player.RED else Player.RED
 
     def place_letter(self, row: int, col: int, letter:str) -> None:
         if self.is_over:
@@ -126,53 +133,56 @@ class BaseGame(ABC):
 
     def cell(self, r: int, c: int) -> Cell:
         return self.board.grid[r][c]
-
-    def SOS_line(self, new_lines: list[CompletedSOS]) -> None:
+    #append new sos lines and increment score
+    def sos_line(self, new_lines: list[CompletedSOS]) -> None:
         if not new_lines:
             return
         self.lines.extend(new_lines)
         scored = len(new_lines)
-        if self.current_player == RED_PLAYER:
+        if self.current_player == Player.RED:
             self.red_score += scored
         else:
             self.blue_score += scored
-
-    def new_lines_from_move(self, r: int, c: int, letter: str) -> list[CompletedSOS]:
-        SOS_player = self.current_player
+    #returns list of CompletedSOS segments with owner as current player
+    def new_lines_from_move(self, row: int, col: int, letter: str) -> list[CompletedSOS]:
+        player = self.current_player
         lines: list[CompletedSOS] = []
 
         directions = [(0, 1), (1, 0), (1, 1), (1, -1)] #horizontal, vert, diagonal, diagonal
+
+        def add_line(start: tuple[int, int], end: tuple[int, int]) -> None:
+            lines.append(CompletedSOS(start, end, player))
+
         #placed O, must be in middle of SOS
         if letter == "O":
-            for dr, dc in directions:
-                r1, c1 = r - dr, c - dc
-                r3, c3 = r + dr, c + dc
-                if self.in_bounds(r1, c1) and self.in_bounds(r3, c3):
-                    if self.cell(r1, c1) == "S" and self.cell(r3, c3) == "S":
-                        lines.append(CompletedSOS((r1, c1), (r3, c3), SOS_player))
-            return lines
+            for d_row, d_col in directions:
+                start_r, start_c = row - d_row, col - d_col
+                end_r, end_c = row + d_row, col + d_col
+                if self.in_bounds(start_r, start_c) and self.in_bounds(end_r, end_c):
+                    if self.cell(start_r, start_c) == "S" and self.cell(end_r, end_c) == "S":
+                            add_line((start_r, start_c), (end_r, end_c))
         #placed S, must be at either end of SOS
-        if letter == "S":
-            for dr, dc in directions:
+        elif letter == "S":
+            for d_row, d_col in directions:
                 #S at start of SOS
-                r0, c0 = r +dr, c + dc
-                rS2, cS2 = r + 2*dr, c + 2*dc
-                if self.in_bounds(r0, c0) and self.in_bounds(rS2, cS2):
-                    if self.cell(r0, c0) == "O" and self.cell(rS2, cS2) == "S":
-                        lines.append(CompletedSOS((r, c), (rS2, cS2), SOS_player))
+                mid_r, mid_c = row + d_row, col + d_col
+                end_r, end_c = row + 2 * d_row, col + 2 * d_col
+                if self.in_bounds(mid_r, mid_c) and self.in_bounds(end_r, end_c):
+                    if self.cell(mid_r, mid_c) == "O" and self.cell(end_r, end_c) == "S":
+                        add_line((row, col), (end_r, end_c))
                 #S at end SOS
-                rS1, cS1 = r - 2*dr, c - 2*dc
-                rO2, cO2 = r - dr, c - dc
-                if self.in_bounds(rS1, cS1) and self.in_bounds(rO2, cO2):
-                    if self.cell(rO2, cO2) == "O" and self.cell(rS1, cS1) == "S":
-                        lines.append(CompletedSOS((rS1, cS1), (r, c), SOS_player))
+                start_r, start_c = row - 2 * d_row, col - 2 * d_col
+                mid_r2, mid_c2   = row - d_row,     col - d_col
+                if self.in_bounds(start_r, start_c) and self.in_bounds(mid_r2, mid_c2):
+                    if self.cell(mid_r2, mid_c2) == "O" and self.cell(start_r, start_c) == "S":
+                        add_line((start_r, start_c), (row, col))
             return lines
         return lines
 
 class SimpleGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
         new_lines = self.new_lines_from_move(row, col, letter)
-        self.SOS_line(new_lines)
+        self.sos_line(new_lines)
         #scoring simple
         if new_lines:
             self.is_over = True
@@ -185,20 +195,20 @@ class SimpleGame(BaseGame):
 class GeneralGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
         new_lines = self.new_lines_from_move(row, col, letter)
-        self.SOS_line(new_lines)
+        self.sos_line(new_lines)
         #scoring general
         if self.board.is_full():
             self.is_over = True
             if self.red_score > self.blue_score:
-                self.winner = RED_PLAYER
+                self.winner = Player.RED
             elif self.blue_score > self.red_score:
-                self.winner = BLUE_PLAYER
+                self.winner = Player.BLUE
             else:
                 self.winner = None
 
-def start_game(*, board_size: int, mode: str, starting_player: int = DEFAULT_STARTING_PLAYER) -> BaseGame:
+def start_game(*, board_size: int, mode: str | Mode, starting_player: Player = DEFAULT_STARTING_PLAYER) -> BaseGame:
     m = validate_mode(mode)
-    if m == SIMPLE:
+    if m == Mode.SIMPLE:
         return SimpleGame(board_size=board_size, starting_player=starting_player)
     else:
         return GeneralGame(board_size=board_size, starting_player=starting_player)

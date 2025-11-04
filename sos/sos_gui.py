@@ -3,8 +3,8 @@ from PyQt5.QtGui import QPainter, QPen, QFont
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QGroupBox, QRadioButton,
                              QSpinBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,)
 
-from sos_logic import start_game, SIMPLE, GENERAL, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
-    InvalidLetterError, RED_PLAYER, BLUE_PLAYER
+from sos_logic import start_game, Mode, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
+    InvalidLetterError, Player
 
 
 class GameBoard(QWidget):
@@ -57,6 +57,29 @@ class GameBoard(QWidget):
                 if value:
                     rect = QRect(margin + c * cell, margin + r * cell, cell, cell) #cell rectangle coord
                     painter.drawText(rect, Qt.AlignCenter, value)
+
+        #draw line for completed SOS
+        if getattr(self._game, "lines", None):
+            line_pen = QPen()
+            line_pen.setWidth(3)
+            #color by owner
+            for segment in self._game.lines:
+                if segment.player == Player.RED:
+                    line_pen.setColor(Qt.red)
+                elif segment.player == Player.BLUE:
+                    line_pen.setColor(Qt.blue)
+                painter.setPen(line_pen)
+
+                #grid coords to pixel center
+                start_row, start_col = segment.start
+                end_row, end_col = segment.end
+                x1 = margin + start_col * cell + cell // 2
+                y1 = margin + start_row * cell + cell // 2
+                x2 = margin + end_col * cell + cell // 2
+                y2 = margin + end_row * cell + cell // 2
+
+                painter.drawLine(x1, y1, x2, y2)
+
     #mouse1 placement
     def mousePressEvent(self, event):
         if not self._game or event.button() != Qt.LeftButton:
@@ -148,13 +171,13 @@ class MainWindow(QMainWindow):
         return box, s_radio, o_radio
 
     def _get_current_mode(self):
-        return SIMPLE if self.mode_simple.isChecked() else GENERAL
+        return Mode.SIMPLE if self.mode_simple.isChecked() else Mode.GENERAL
 
     #return player s/o selection
     def _get_current_player_letter(self):
         if not self.game: #default s
             return "S"
-        if self.game.current_player == 1:
+        if self.game.current_player == Player.RED:
             return "S" if self.red_s.isChecked() else "O"
         else:
             return "S" if self.blue_s.isChecked() else "O"
@@ -162,7 +185,7 @@ class MainWindow(QMainWindow):
     def _update_turn_label(self):
         if not self.game:
             self.turn_label.setText("Current turn: —")
-        elif self.game.current_player == 1:
+        elif self.game.current_player == Player.RED:
             self.turn_label.setText("Current turn: Red ")
         else:
             self.turn_label.setText("Current turn: Blue")
@@ -194,23 +217,23 @@ class MainWindow(QMainWindow):
             return
 
         self.board_widget.update() #redraw board
-
+        #game over and score popup
         if self.game.is_over:
             if self.mode_simple.isChecked():
-                if self.game.winner == RED_PLAYER:
+                if self.game.winner == Player.RED:
                     QMessageBox.information(self, "Game Over", "Red wins")
-                elif self.game.winner == BLUE_PLAYER:
+                elif self.game.winner == Player.BLUE:
                     QMessageBox.information(self, "Game Over", "Blue wins")
                 else:
                     QMessageBox.information(self, "Game Over", "Draw")
             else:
-                rs, bs = self.game.red_score, self.game.blue_score
-                if self.game.winner == RED_PLAYER:
-                    QMessageBox.information(self, "Game Over", f"Red wins {rs}-{bs}")
-                elif self.game.winner == BLUE_PLAYER:
-                    QMessageBox.information(self, "Game Over", f"Blue wins {bs}-{rs}")
+                red_score, blue_score = self.game.red_score, self.game.blue_score
+                if self.game.winner == Player.RED:
+                    QMessageBox.information(self, "Game Over", f"Red wins {red_score}-{blue_score}")
+                elif self.game.winner == Player.BLUE:
+                    QMessageBox.information(self, "Game Over", f"Blue wins {blue_score}-{red_score}")
                 else:
-                    QMessageBox.information(self, "Game Over", f"Draw {rs}-{bs}")
+                    QMessageBox.information(self, "Game Over", f"Draw {red_score}-{blue_score}")
         else:
             self._update_turn_label()
 

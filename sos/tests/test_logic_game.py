@@ -1,23 +1,23 @@
 import unittest
 
-from sos_logic import (SIMPLE, GENERAL, MODES, start_game, Board,
+from sos_logic import (Mode, MODES, start_game, Board,
     InvalidMoveError, MIN_N, DEFAULT_STARTING_PLAYER, InvalidLetterError, InvalidGameModeError,
-                       OutOfBoundsError, validate_mode, RED_PLAYER, BLUE_PLAYER)
+                       OutOfBoundsError, validate_mode, Player)
 
 class TestGameMode(unittest.TestCase):
     def test_valid_modes(self):
-        self.assertEqual(set(MODES), {SIMPLE, GENERAL})
+        self.assertEqual(set(MODES), {Mode.SIMPLE, Mode.GENERAL})
 
 class TestGameInit(unittest.TestCase):
     def test_game_init(self):
-        g = start_game(board_size=MIN_N, mode=SIMPLE, starting_player=BLUE_PLAYER)
+        g = start_game(board_size=MIN_N, mode=Mode.SIMPLE, starting_player=Player.BLUE)
         self.assertEqual(g.board.board_size, MIN_N)
         self.assertIsInstance(g.board, Board)
-        self.assertEqual(g.current_player, BLUE_PLAYER)
+        self.assertEqual(g.current_player, Player.BLUE)
 
 class TestGameCellAndMoves(unittest.TestCase):
     def setUp(self):
-        self.g = start_game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
+        self.g = start_game(board_size=3, mode=Mode.SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
 
     def test_cell_empty_init(self):
         self.assertTrue(self.g.board.is_empty(0,0))
@@ -27,11 +27,11 @@ class TestGameCellAndMoves(unittest.TestCase):
         #red player S
         self.g.place_letter(0, 0, "S")
         self.assertEqual(self.g.board.grid[0][0], "S")
-        self.assertEqual(self.g.current_player, BLUE_PLAYER)  # switch
+        self.assertEqual(self.g.current_player, Player.BLUE)  # switch
         #blue player o
         self.g.place_letter(1, 1, "O")
         self.assertEqual(self.g.board.grid[1][1], "O")
-        self.assertEqual(self.g.current_player, RED_PLAYER) #switch
+        self.assertEqual(self.g.current_player, Player.RED) #switch
 
     def test_cannot_place_on_occupied_cell(self):
         self.g.place_letter(0, 0, "S")
@@ -42,11 +42,11 @@ class TestGameCellAndMoves(unittest.TestCase):
 class TestModeNormalization(unittest.TestCase):
     def test_mode_normalization(self):
         cases = {
-            "SIMPLE": SIMPLE,
-            " simple ": SIMPLE,
-            "Simple": SIMPLE,
-            "\nGENERAL\t": GENERAL,
-            "GeNeRaL": GENERAL,
+            "SIMPLE": Mode.SIMPLE,
+            " simple ": Mode.SIMPLE,
+            "Simple": Mode.SIMPLE,
+            "\nGENERAL\t": Mode.GENERAL,
+            "GeNeRaL": Mode.GENERAL,
         }
         for raw, expected in cases.items():
             with self.subTest(raw=raw):
@@ -59,11 +59,11 @@ class TestInvalidStartingPlayer(unittest.TestCase):
         for bad_player in [0, 3, -1, None, "A"]:
             with self.subTest(bad_player=bad_player):
                 with self.assertRaises(ValueError):
-                    start_game(board_size=3, mode=SIMPLE, starting_player=bad_player)
+                    start_game(board_size=3, mode=Mode.SIMPLE, starting_player=bad_player)
 
 class TestInvalidMovesAndLetters(unittest.TestCase):
     def setUp(self):
-        self.g = start_game(board_size=3, mode=SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
+        self.g = start_game(board_size=3, mode=Mode.SIMPLE, starting_player=DEFAULT_STARTING_PLAYER)
 
     def test_out_of_bounds(self):
         with self.assertRaises(OutOfBoundsError):
