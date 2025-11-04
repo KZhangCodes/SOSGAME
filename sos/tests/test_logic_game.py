@@ -1,12 +1,12 @@
 import unittest
 
-from sos_logic import (Mode, MODES, start_game, Board,
+from sos_logic import (Mode, start_game, Board,
     InvalidMoveError, MIN_N, DEFAULT_STARTING_PLAYER, InvalidLetterError, InvalidGameModeError,
                        OutOfBoundsError, validate_mode, Player)
 
 class TestGameMode(unittest.TestCase):
     def test_valid_modes(self):
-        self.assertEqual(set(MODES), {Mode.SIMPLE, Mode.GENERAL})
+        self.assertEqual({m for m in Mode}, {Mode.SIMPLE, Mode.GENERAL})
 
 class TestGameInit(unittest.TestCase):
     def test_game_init(self):
