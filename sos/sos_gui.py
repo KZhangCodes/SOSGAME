@@ -4,7 +4,7 @@ from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QGroupBox, QRadioButt
                              QSpinBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,)
 
 from sos_logic import start_game, SIMPLE, GENERAL, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
-    InvalidLetterError
+    InvalidLetterError, RED_PLAYER, BLUE_PLAYER
 
 
 class GameBoard(QWidget):
@@ -194,7 +194,25 @@ class MainWindow(QMainWindow):
             return
 
         self.board_widget.update() #redraw board
-        self._update_turn_label()
+
+        if self.game.is_over:
+            if self.mode_simple.isChecked():
+                if self.game.winner == RED_PLAYER:
+                    QMessageBox.information(self, "Game Over", "Red wins")
+                elif self.game.winner == BLUE_PLAYER:
+                    QMessageBox.information(self, "Game Over", "Blue wins")
+                else:
+                    QMessageBox.information(self, "Game Over", "Draw")
+            else:
+                rs, bs = self.game.red_score, self.game.blue_score
+                if self.game.winner == RED_PLAYER:
+                    QMessageBox.information(self, "Game Over", f"Red wins {rs}-{bs}")
+                elif self.game.winner == BLUE_PLAYER:
+                    QMessageBox.information(self, "Game Over", f"Blue wins {bs}-{rs}")
+                else:
+                    QMessageBox.information(self, "Game Over", f"Draw {rs}-{bs}")
+        else:
+            self._update_turn_label()
 
 
 
