@@ -132,5 +132,60 @@ class TestSimpleGameEnds(unittest.TestCase):
         self.assertEqual(game2.board.board_size, 4)
         self.assertEqual(game2.current_player, Player.RED)
 
+#user story 7: general game is over
+class TestGeneralGameEnds(unittest.TestCase):
+    def setUp(self):
+        self.g = start_game(board_size=3, mode=Mode.GENERAL, starting_player=Player.RED)
+    #AC 7.1
+    def test_general_winner_filled_board(self):
+        #red: s(0,0), blue: o(0,1), red: s(0,2), rest o
+        self.g.place_letter(0, 0, "S")
+        self.g.place_letter(0, 1, "O")
+        self.g.place_letter(0, 2, "S")
+
+        moves = [
+            (1, 0), (1, 1), (1, 2),
+            (2, 0), (2, 1), (2, 2),
+        ]
+        #alternate with o
+        letters = ["O"] * len(moves)
+        for (row, col), letter in zip(moves, letters):
+            self.g.place_letter(row, col, letter)
+
+        self.assertTrue(self.g.is_over)
+        self.assertEqual(self.g.red_score, 1)
+        self.assertEqual(self.g.blue_score, 0)
+        self.assertEqual(self.g.winner, Player.RED)
+    #AC 7.2
+    def test_general_draw_event(self):
+        #fill with all o
+        moves = [
+            (0, 0), (0, 1), (0, 2),
+            (1, 0), (1, 1), (1, 2),
+            (2, 0), (2, 1), (2, 2),
+        ]
+        for row, col in moves:
+            self.g.place_letter(row, col, "O")
+
+        self.assertTrue(self.g.is_over)
+        self.assertEqual(self.g.red_score, 0)
+        self.assertEqual(self.g.blue_score, 0)
+        self.assertIsNone(self.g.winner)
+    #AC 7.3
+    def test_general_reset(self):
+        #full board with no SOS
+        for row, col in [(row, col) for row in range(3) for col in range(3)]:
+            self.g.place_letter(row, col, "O")
+        self.assertTrue(self.g.is_over)
+        #start new general game with different size
+        game2 = start_game(board_size=5, mode=Mode.GENERAL, starting_player=Player.RED)
+        self.assertFalse(game2.is_over)
+        self.assertIsNone(game2.winner)
+        self.assertEqual(game2.red_score, 0)
+        self.assertEqual(game2.blue_score, 0)
+        self.assertEqual(len(game2.lines), 0)
+        self.assertEqual(game2.board.board_size, 5)
+        self.assertEqual(game2.current_player, Player.RED)
+
 if __name__ == '__main__':
     unittest.main()
