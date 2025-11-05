@@ -65,6 +65,7 @@ class CompletedSOS:
 
 @dataclass #__init__
 class Board:
+    #private
     board_size: int
     grid: list[list[Cell]] = field(init=False)
     #validate board, each none = empty cell for gui
@@ -89,6 +90,8 @@ class Board:
         return self.grid[row][col]
 
     def place(self, row: int, col: int, letter: str) -> None:
+        if letter not in ("S", "O"):
+            raise InvalidLetterError("Letter must be S or O")
         if not self.in_bounds(row, col):
             raise OutOfBoundsError("Out of bounds")
         if self.grid[row][col] is not None:
