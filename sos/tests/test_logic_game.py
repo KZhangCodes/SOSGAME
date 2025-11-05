@@ -187,5 +187,23 @@ class TestGeneralGameEnds(unittest.TestCase):
         self.assertEqual(game2.board.board_size, 5)
         self.assertEqual(game2.current_player, Player.RED)
 
+#line segment test
+class TestCompletedSOSSegment(unittest.TestCase):
+    def setUp(self):
+        self.g = start_game(board_size=3, mode=Mode.SIMPLE, starting_player=Player.RED)
+    #horizontal sos, segment owner and endpoints
+    def test_horizontal_and_endpoints(self):
+        self.g.place_letter(0, 0, "S")
+        self.g.place_letter(0, 1, "O")
+        self.g.place_letter(0, 2, "S")
+
+        self.assertTrue(self.g.is_over)
+        self.assertEqual(len(self.g.lines), 1)
+
+        segment = self.g.lines[0]
+        self.assertEqual(segment.start, (0, 0))
+        self.assertEqual(segment.end, (0, 2))
+        self.assertEqual(segment.player, Player.RED)
+
 if __name__ == '__main__':
     unittest.main()
