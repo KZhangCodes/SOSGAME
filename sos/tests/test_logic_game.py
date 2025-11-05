@@ -81,5 +81,56 @@ class TestInvalidMode(unittest.TestCase):
         with self.assertRaises(InvalidGameModeError):
             start_game(board_size=3, mode="SUDDEN_DEATH")
 
+#user story 5: simple game is over
+class TestSimpleGameEnds(unittest.TestCase):
+    def setUp(self):
+        self.g = start_game(board_size=3, mode=Mode.SIMPLE, starting_player=Player.RED)
+    #AC 5.1
+    def test_simple_winner_on_sos(self):
+        #red: s(0,0), blue: o(0,1), red: s(0,2)
+        self.g.place_letter(0, 0, "S")
+        self.g.place_letter(0, 1, "O")
+        self.g.place_letter(0, 2, "S")
+
+        self.assertTrue(self.g.is_over)
+        self.assertEqual(self.g.winner, Player.RED)
+        #no turn swift after game over
+        self.assertEqual(self.g.current_player, Player.RED)
+        self.assertEqual(len(self.g.lines), 1)
+        segment = self.g.lines[0]
+        self.assertEqual(segment.start, (0, 0))
+        self.assertEqual(segment.end, (0, 2))
+        self.assertEqual(segment.player, Player.RED)
+    #AC 5.2
+    def test_simple_draw(self):
+        #3x3 all o no sos
+        moves = [
+            (0, 0), (0, 1), (0, 2),
+            (1, 0), (1, 1), (1, 2),
+            (2, 0), (2, 1), (2, 2),
+        ]
+        for row, col in moves:
+            self.g.place_letter(row, col, "O")
+
+        self.assertTrue(self.g.is_over)
+        self.assertIsNone(self.g.winner)
+        self.assertEqual(len(self.g.lines), 0)
+    #AC 5.3
+    def test_simple_reset(self):
+        #end simple with red sos
+        self.g.place_letter(0, 0, "S")
+        self.g.place_letter(0, 1, "O")
+        self.g.place_letter(0, 2, "S")
+        self.assertTrue(self.g.is_over)
+        #start new simple game with different size
+        game2 = start_game(board_size=4, mode=Mode.SIMPLE, starting_player=Player.RED)
+        self.assertFalse(game2.is_over)
+        self.assertIsNone(game2.winner)
+        self.assertEqual(game2.red_score, 0)
+        self.assertEqual(game2.blue_score, 0)
+        self.assertEqual(len(game2.lines), 0)
+        self.assertEqual(game2.board.board_size, 4)
+        self.assertEqual(game2.current_player, Player.RED)
+
 if __name__ == '__main__':
     unittest.main()
