@@ -16,37 +16,56 @@ class GameBoard(QWidget):
         self._game = None
         self._cell_size = 35
         self._margin = 5
-        self.setMinimumSize(8 * self._cell_size + 2 * self._margin, 8 * self._cell_size + 2 * self._margin)
+        self._init_minimum_size()
         #widget large enough for max size
         #
 
+    def _init_minimum_size(self):
+        max_board_size = 8
+        side = max_board_size * self._cell_size + 2 * self._margin
+        self.setMinimumSize(side, side)
+
+    def _update_board_size(self):
+        if not self._game:
+            return
+        side = self._game.board_size * self._cell_size + 2 * self._margin
+        self.setMinimumSize(side, side)
+
     def set_game(self, game):
         self._game = game #current game instance
-        side = game.board_size * self._cell_size + 2 * self._margin #widget based on board size
-        self.setMinimumSize(side, side)
+        self._update_board_size()
         self.update() #repaint event, calls paintEvent()
+
+    def _board_geometry(self):
+        board_size = self._game.board_size
+        cell = self._cell_size
+        margin = self._margin
+        size = board_size * cell
+        return board_size, cell, margin, size
 
     def paintEvent(self, event):
         if not self._game:
             return
         painter = QPainter(self)
+        board_size, cell, margin, size = self._board_geometry()
 
-        board_size = self._game.board_size
-        cell = self._cell_size
-        margin = self._margin
-        size = board_size * cell
+        self._draw_border_grid(painter, board_size, cell, margin, size)
+        self._draw_letters(painter, board_size, cell, margin)
+        self._draw_sos_lines(painter, cell, margin)
 
-        #border and grid lines
+    def _draw_border_grid(self, painter: QPainter, board_size: int, cell: int, margin: int, size: int) ->None:
         pen = QPen(Qt.black)
         pen.setWidth(1)
         painter.setPen(pen)
         painter.drawRect(margin, margin, size, size) #square border enclosing cells
+
         for i in range(1, board_size):
             x = margin + i * cell #vertical line pos
             painter.drawLine(x, margin, x, margin + size)
             y = margin + i * cell #hortizontal
             painter.drawLine(margin, y, margin + size, y)
 
+    def _draw_letters(self, painter: QPainter, board_size: int, cell: int, margin: int) ->None:
         #draw letter for S and O
         font = QFont()
         font.setPointSize(18)
@@ -58,27 +77,30 @@ class GameBoard(QWidget):
                     rect = QRect(margin + c * cell, margin + r * cell, cell, cell) #cell rectangle coord
                     painter.drawText(rect, Qt.AlignCenter, value)
 
+    def _draw_sos_lines(self, painter: QPainter, cell: int, margin: int) ->None:
         #draw line for completed SOS
-        if getattr(self._game, "lines", None):
-            line_pen = QPen()
-            line_pen.setWidth(3)
-            #color by owner
-            for segment in self._game.lines:
-                if segment.player == Player.RED:
-                    line_pen.setColor(Qt.red)
-                elif segment.player == Player.BLUE:
-                    line_pen.setColor(Qt.blue)
-                painter.setPen(line_pen)
+        if not getattr(self._game, "lines", None):
+            return
 
-                #grid coords to pixel center
-                start_row, start_col = segment.start
-                end_row, end_col = segment.end
-                x1 = margin + start_col * cell + cell // 2
-                y1 = margin + start_row * cell + cell // 2
-                x2 = margin + end_col * cell + cell // 2
-                y2 = margin + end_row * cell + cell // 2
+        line_pen = QPen()
+        line_pen.setWidth(3)
+        #color by owner
+        for segment in self._game.lines:
+            if segment.player == Player.RED:
+                line_pen.setColor(Qt.red)
+            elif segment.player == Player.BLUE:
+                line_pen.setColor(Qt.blue)
+            painter.setPen(line_pen)
 
-                painter.drawLine(x1, y1, x2, y2)
+            #grid coords to pixel center
+            start_row, start_col = segment.start
+            end_row, end_col = segment.end
+            x1 = margin + start_col * cell + cell // 2
+            y1 = margin + start_row * cell + cell // 2
+            x2 = margin + end_col * cell + cell // 2
+            y2 = margin + end_row * cell + cell // 2
+
+            painter.drawLine(x1, y1, x2, y2)
 
     #mouse1 placement
     def mousePressEvent(self, event):
@@ -99,53 +121,33 @@ class GameBoard(QWidget):
 class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
-        self.setWindowTitle("SOS Game")
         self.game = None #hold current game instance
+        self._setup_window()
+        self._create_widget()
+        self._create_layout()
+        self._signals()
+        self._start_new_game()
 
-        #game mode radios
-        mode_box = QGroupBox("Game Mode")
-        self.mode_simple = QRadioButton("Simple Mode")
-        self.mode_general = QRadioButton("General Mode")
-        self.mode_simple.setChecked(True) #default simple
-        layout_mode = QVBoxLayout()
-        layout_mode.addWidget(self.mode_simple)
-        layout_mode.addWidget(self.mode_general)
-        mode_box.setLayout(layout_mode)
+    def _setup_window(self):
+        self.setWindowTitle("SOS Game")
 
-        #QSpinBox only allows values between 3-8 regardless of input, arrows wont go outside this range
-        size_box = QGroupBox("Board Size")
-        self.size_spin = QSpinBox()
-        self.size_spin.setRange(3, 8)
-        self.size_spin.setValue(3)
-        layout_size = QVBoxLayout()
-        layout_size.addWidget(self.size_spin)
-        size_box.setLayout(layout_size)
 
-        self.new_button = QPushButton("Start New Game") #game start
-        top_row = QHBoxLayout()
-        top_row.addWidget(mode_box)
-        top_row.addStretch(1)
-        top_row.addWidget(size_box)
-        top_row.addWidget(self.new_button)
-
+    def _create_widget(self):
+        self.mode_box = self._create_mode_box()
+        self.size_box = self._create_size_box()
+        self.new_button = QPushButton("Start new game")
         self.board_widget = GameBoard() #board placement
-        board_wrap = QHBoxLayout()
-        board_wrap.addStretch(1)
-        board_wrap.addWidget(self.board_widget)
-        board_wrap.addStretch(1)
-
-        #s/o picker
+        # s/o picker
         self.red_box, self.red_s, self.red_o = self._create_player_box("Red")
         self.blue_box, self.blue_s, self.blue_o = self._create_player_box("Blue")
         self.red_s.setChecked(True)
         self.blue_s.setChecked(True)
-        side_row = QHBoxLayout()
-        side_row.addWidget(self.red_box)
-        side_row.addLayout(board_wrap)
-        side_row.addWidget(self.blue_box)
-
         self.turn_label = QLabel("Current turn: —") #current turn label
         self.turn_label.setAlignment(Qt.AlignCenter)
+
+    def _create_layout(self):
+        top_row = self._build_top_row()
+        side_row = self._build_side_row()
 
         root = QWidget()
         root_layout = QVBoxLayout(root)
@@ -154,10 +156,52 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.turn_label)
         self.setCentralWidget(root)
 
+    def _signals(self):
         self.new_button.clicked.connect(self._start_new_game) #add start_new_game method
         self.board_widget.cell_clicked.connect(self._on_cell_clicked)
 
-        self._start_new_game()
+    def _create_mode_box(self) -> QGroupBox:
+        mode_box = QGroupBox("Game mode")
+        #game mode radios
+        self.mode_simple = QRadioButton("Simple Mode")
+        self.mode_general = QRadioButton("General Mode")
+        self.mode_simple.setChecked(True) #default simple
+        layout_mode = QVBoxLayout()
+        layout_mode.addWidget(self.mode_simple)
+        layout_mode.addWidget(self.mode_general)
+        mode_box.setLayout(layout_mode)
+        return mode_box
+
+    def _create_size_box(self) -> QGroupBox:
+        #QSpinBox only allows values between 3-8 regardless of input, arrows wont go outside this range
+        size_box = QGroupBox("Board Size")
+        self.size_spin = QSpinBox()
+        self.size_spin.setRange(3, 8)
+        self.size_spin.setValue(3)
+        layout_size = QVBoxLayout()
+        layout_size.addWidget(self.size_spin)
+        size_box.setLayout(layout_size)
+        return size_box
+
+    def _build_top_row(self) -> QHBoxLayout:
+        top_row = QHBoxLayout()
+        top_row.addWidget(self.mode_box)
+        top_row.addStretch(1)
+        top_row.addWidget(self.size_box)
+        top_row.addWidget(self.new_button)
+        return top_row
+
+    def _build_side_row(self) -> QHBoxLayout:
+        board_wrap = QHBoxLayout()
+        board_wrap.addStretch(1)
+        board_wrap.addWidget(self.board_widget)
+        board_wrap.addStretch(1)
+
+        side_row = QHBoxLayout()
+        side_row.addWidget(self.red_box)
+        side_row.addLayout(board_wrap)
+        side_row.addWidget(self.blue_box)
+        return side_row
 
     #s/o selection
     def _create_player_box(self, title):
