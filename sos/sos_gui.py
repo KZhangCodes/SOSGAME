@@ -1,7 +1,7 @@
 from PyQt5.QtCore import Qt, QRect, pyqtSignal
 from PyQt5.QtGui import QPainter, QPen, QFont
 from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QGroupBox, QRadioButton,
-                             QSpinBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox,)
+                             QSpinBox, QPushButton, QVBoxLayout, QHBoxLayout, QMessageBox, QButtonGroup)
 
 from sos_logic import start_game, Mode, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
     InvalidLetterError, Player
@@ -136,18 +136,18 @@ class MainWindow(QMainWindow):
     def _setup_window(self):
         self.setWindowTitle("SOS Game")
 
-
     def _create_widget(self):
         self.mode_box = self._create_mode_box()
-        self.opponent_box = self._create_opponent_box()
         self.size_box = self._create_size_box()
         self.new_button = QPushButton("Start new game")
         self.board_widget = GameBoard() #board placement
         # s/o picker
-        self.red_box, self.red_s, self.red_o = self._create_player_box("Red")
-        self.blue_box, self.blue_s, self.blue_o = self._create_player_box("Blue")
+        self.red_box, self.red_human, self.red_computer, self.red_s, self.red_o = self._create_player_box("Red")
+        self.blue_box, self.blue_human, self.blue_computer, self.blue_s, self.blue_o = self._create_player_box("Blue")
         self.red_s.setChecked(True)
         self.blue_s.setChecked(True)
+        self.red_human.setChecked(True)
+        self.blue_human.setChecked(True)
         self.turn_label = QLabel("Current turn: —") #current turn label
         self.turn_label.setAlignment(Qt.AlignCenter)
 
@@ -178,21 +178,6 @@ class MainWindow(QMainWindow):
         mode_box.setLayout(layout_mode)
         return mode_box
 
-    def _create_opponent_box(self) -> QGroupBox:
-        box = QGroupBox("Opponent type")
-        self.opponent_hvh = QRadioButton("Player vs Player")
-        self.opponent_comp_red = QRadioButton("Red computer")
-        self.opponent_comp_blue = QRadioButton("Blue computer")
-
-        self.opponent_hvh.setChecked(True)
-
-        layout = QVBoxLayout()
-        layout.addWidget(self.opponent_hvh)
-        layout.addWidget(self.opponent_comp_red)
-        layout.addWidget(self.opponent_comp_blue)
-        box.setLayout(layout)
-        return box
-
     def _create_size_box(self) -> QGroupBox:
         #QSpinBox only allows values between 3-8 regardless of input, arrows wont go outside this range
         size_box = QGroupBox("Board Size")
@@ -207,7 +192,6 @@ class MainWindow(QMainWindow):
     def _build_top_row(self) -> QHBoxLayout:
         top_row = QHBoxLayout()
         top_row.addWidget(self.mode_box)
-        top_row.addWidget(self.opponent_box)
         top_row.addStretch(1)
         top_row.addWidget(self.size_box)
         top_row.addWidget(self.new_button)
@@ -228,23 +212,49 @@ class MainWindow(QMainWindow):
     #s/o selection
     def _create_player_box(self, title):
         box = QGroupBox(title)
+
+        human_radio = QRadioButton("Human")
+        computer_radio = QRadioButton("Computer")
         s_radio = QRadioButton("S")
         o_radio = QRadioButton("O")
-        v = QVBoxLayout()
-        v.addWidget(s_radio)
-        v.addWidget(o_radio)
-        box.setLayout(v)
-        return box, s_radio, o_radio
+
+        human_group = QButtonGroup(box)
+        human_group.setExclusive(True)
+        human_group.addButton(human_radio)
+        human_group.addButton(computer_radio)
+
+        letter_group = QButtonGroup(box)
+        letter_group.setExclusive(True)
+        letter_group.addButton(s_radio)
+        letter_group.addButton(o_radio)
+
+        layout = QVBoxLayout()
+        layout.addWidget(human_radio)
+        layout.addWidget(computer_radio)
+        layout.addSpacing(8)
+        layout.addWidget(s_radio)
+        layout.addWidget(o_radio)
+
+        box.setLayout(layout)
+
+        return box, human_radio, computer_radio, s_radio, o_radio
+
+    def _determine_computer_side(self) -> Player | None:
+        red_is_computer = self.red_computer.isChecked()
+        blue_is_computer = self.blue_computer.isChecked()
+
+        if red_is_computer and blue_is_computer:
+            QMessageBox.warning(self, "Invalid")
+            return None
+
+        if red_is_computer:
+            return Player.RED
+        if blue_is_computer:
+            return Player.BLUE
+        return None
 
     def _get_current_mode(self):
         return Mode.SIMPLE if self.mode_simple.isChecked() else Mode.GENERAL
-
-    def _get_computer_side(self) -> Player | None:
-        if self.opponent_comp_red.isChecked():
-            return Player.RED
-        if self.opponent_comp_blue.isChecked():
-            return Player.BLUE
-        return None
 
     #return player s/o selection
     def _get_current_player_letter(self):
@@ -304,17 +314,22 @@ class MainWindow(QMainWindow):
         board_size = self.size_spin.value()
         mode = self._get_current_mode()
 
-        self.computer_side = self._get_computer_side()
+        self.computer_side = None
         self.computer = None
+        computer_side = self._determine_computer_side()
+
+        if self.red_computer.isChecked() and self.blue_computer.isChecked():
+            return
+
+        self.computer_side = computer_side
+        if self.computer_side is not None:
+            self.computer = EasyComputerOpponent(self.computer_side)
 
         try:
             self.game = start_game(board_size=board_size, mode=mode)
         except (InvalidBoardSizeError, InvalidGameModeError) as e:
             QMessageBox.warning(self, "Invalid settings", str(e))
             return
-
-        if self.computer_side is not None:
-            self.computer = EasyComputerOpponent(self.computer_side)
 
         self.board_widget.set_game(self.game)
         self._update_turn_label()
