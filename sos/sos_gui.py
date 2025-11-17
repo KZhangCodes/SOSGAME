@@ -5,6 +5,7 @@ from PyQt5.QtWidgets import (QWidget, QMainWindow, QLabel, QGroupBox, QRadioButt
 
 from sos_logic import start_game, Mode, InvalidMoveError, InvalidGameModeError, InvalidBoardSizeError, \
     InvalidLetterError, Player
+from sos_computer import EasyComputerOpponent
 
 
 class GameBoard(QWidget):
@@ -122,6 +123,10 @@ class MainWindow(QMainWindow):
     def __init__(self):
         super().__init__()
         self.game = None #hold current game instance
+
+        self.computer_side: Player | None = None
+        self.computer: EasyComputerOpponent | None = None
+
         self._setup_window()
         self._create_widget()
         self._create_layout()
@@ -134,6 +139,7 @@ class MainWindow(QMainWindow):
 
     def _create_widget(self):
         self.mode_box = self._create_mode_box()
+        self.opponent_box = self._create_opponent_box()
         self.size_box = self._create_size_box()
         self.new_button = QPushButton("Start new game")
         self.board_widget = GameBoard() #board placement
@@ -172,6 +178,21 @@ class MainWindow(QMainWindow):
         mode_box.setLayout(layout_mode)
         return mode_box
 
+    def _create_opponent_box(self) -> QGroupBox:
+        box = QGroupBox("Opponent type")
+        self.opponent_hvh = QRadioButton("Player vs Player")
+        self.opponent_comp_red = QRadioButton("Red computer")
+        self.opponent_comp_blue = QRadioButton("Blue computer")
+
+        self.opponent_hvh.setChecked(True)
+
+        layout = QVBoxLayout()
+        layout.addWidget(self.opponent_hvh)
+        layout.addWidget(self.opponent_comp_red)
+        layout.addWidget(self.opponent_comp_blue)
+        box.setLayout(layout)
+        return box
+
     def _create_size_box(self) -> QGroupBox:
         #QSpinBox only allows values between 3-8 regardless of input, arrows wont go outside this range
         size_box = QGroupBox("Board Size")
@@ -186,6 +207,7 @@ class MainWindow(QMainWindow):
     def _build_top_row(self) -> QHBoxLayout:
         top_row = QHBoxLayout()
         top_row.addWidget(self.mode_box)
+        top_row.addWidget(self.opponent_box)
         top_row.addStretch(1)
         top_row.addWidget(self.size_box)
         top_row.addWidget(self.new_button)
@@ -217,6 +239,13 @@ class MainWindow(QMainWindow):
     def _get_current_mode(self):
         return Mode.SIMPLE if self.mode_simple.isChecked() else Mode.GENERAL
 
+    def _get_computer_side(self) -> Player | None:
+        if self.opponent_comp_red.isChecked():
+            return Player.RED
+        if self.opponent_comp_blue.isChecked():
+            return Player.BLUE
+        return None
+
     #return player s/o selection
     def _get_current_player_letter(self):
         if not self.game: #default s
@@ -234,22 +263,73 @@ class MainWindow(QMainWindow):
         else:
             self.turn_label.setText("Current turn: Blue")
 
+    def _game_over_dialog(self):
+        if not self.game or not self.game.is_over:
+            return
+
+        if self.mode_simple.isChecked():
+            if self.game.winner == Player.RED:
+                QMessageBox.information(self, "Game Over", "Red wins")
+            elif self.game.winner == Player.BLUE:
+                QMessageBox.information(self, "Game Over", "Blue wins")
+            else:
+                QMessageBox.information(self, "Game Over", "Draw")
+        else:
+            red_score, blue_score = self.game.red_score, self.game.blue_score
+            if self.game.winner == Player.RED:
+                QMessageBox.information(self, "Game Over", f"Red wins {red_score}-{blue_score}")
+            elif self.game.winner == Player.BLUE:
+                QMessageBox.information(self, "Game Over", f"Blue wins {blue_score}-{red_score}")
+            else:
+                QMessageBox.information(self, "Game Over", f"Draw {red_score}-{blue_score}")
+
+    def _handle_computer_move(self):
+        if not self.game or not self.computer or self.game.is_over:
+            return
+        if self.game.current_player != self.computer.side:
+            return
+
+        row, col, letter = self.computer.choose_move(self.game) #computer choose move
+        self.game.place_letter(row, col, letter)
+
+        self.board_widget.update() #draw move
+
+        if self.game.is_over:
+            self._game_over_dialog()
+        else:
+            self._update_turn_label()
+
     #resets everything on start a new game, pass Game to Gameboard to draw empty grid
     def _start_new_game(self):
         board_size = self.size_spin.value()
         mode = self._get_current_mode()
+
+        self.computer_side = self._get_computer_side()
+        self.computer = None
+
         try:
             self.game = start_game(board_size=board_size, mode=mode)
         except (InvalidBoardSizeError, InvalidGameModeError) as e:
             QMessageBox.warning(self, "Invalid settings", str(e))
             return
+
+        if self.computer_side is not None:
+            self.computer = EasyComputerOpponent(self.computer_side)
+
         self.board_widget.set_game(self.game)
         self._update_turn_label()
+
+        if self.computer and self.game.current_player == self.computer.side:
+            self._handle_computer_move()
 
     #place s/o on clicked cell
     def _on_cell_clicked(self, row, col):
         if not self.game:
             return
+
+        if self.computer and self.game.current_player == self.computer.side:
+            return
+
         letter = self._get_current_player_letter()
         try:
             self.game.place_letter(row, col, letter)
@@ -263,23 +343,10 @@ class MainWindow(QMainWindow):
         self.board_widget.update() #redraw board
         #game over and score popup
         if self.game.is_over:
-            if self.mode_simple.isChecked():
-                if self.game.winner == Player.RED:
-                    QMessageBox.information(self, "Game Over", "Red wins")
-                elif self.game.winner == Player.BLUE:
-                    QMessageBox.information(self, "Game Over", "Blue wins")
-                else:
-                    QMessageBox.information(self, "Game Over", "Draw")
-            else:
-                red_score, blue_score = self.game.red_score, self.game.blue_score
-                if self.game.winner == Player.RED:
-                    QMessageBox.information(self, "Game Over", f"Red wins {red_score}-{blue_score}")
-                elif self.game.winner == Player.BLUE:
-                    QMessageBox.information(self, "Game Over", f"Blue wins {blue_score}-{red_score}")
-                else:
-                    QMessageBox.information(self, "Game Over", f"Draw {red_score}-{blue_score}")
+            self._game_over_dialog()
         else:
             self._update_turn_label()
+            self._handle_computer_move()
 
 
 
