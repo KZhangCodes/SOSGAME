@@ -124,8 +124,7 @@ class MainWindow(QMainWindow):
         super().__init__()
         self.game = None #hold current game instance
 
-        self.computer_side: Player | None = None
-        self.computer: EasyComputerOpponent | None = None
+        self.computers: dict[Player, EasyComputerOpponent] = {}
 
         self._setup_window()
         self._create_widget()
@@ -239,19 +238,10 @@ class MainWindow(QMainWindow):
 
         return box, human_radio, computer_radio, s_radio, o_radio
 
-    def _determine_computer_side(self) -> Player | None:
-        red_is_computer = self.red_computer.isChecked()
-        blue_is_computer = self.blue_computer.isChecked()
-
-        if red_is_computer and blue_is_computer:
-            QMessageBox.warning(self, "Invalid")
-            return None
-
-        if red_is_computer:
-            return Player.RED
-        if blue_is_computer:
-            return Player.BLUE
-        return None
+    def _current_player_computer(self) -> bool:
+        if not self.game:
+            return False
+        return self.game.current_player in self.computers
 
     def _get_current_mode(self):
         return Mode.SIMPLE if self.mode_simple.isChecked() else Mode.GENERAL
@@ -294,13 +284,19 @@ class MainWindow(QMainWindow):
                 QMessageBox.information(self, "Game Over", f"Draw {red_score}-{blue_score}")
 
     def _handle_computer_move(self):
-        if not self.game or not self.computer or self.game.is_over:
+        if not self.game:
             return
-        if self.game.current_player != self.computer.side:
-            return
+        #stop counter
+        moves_left = self.game.board_size * self.game.board_size
 
-        row, col, letter = self.computer.choose_move(self.game) #computer choose move
-        self.game.place_letter(row, col, letter)
+        while not self.game.is_over and moves_left > 0:
+            computer = self.computers.get(self.game.current_player) #check if current player is computer
+            if computer is None: #stop if current player is not computer
+                break
+            #choose move and place
+            row, col, letter = computer.choose_move(self.game)
+            self.game.place_letter(row, col, letter)
+            moves_left -= 1
 
         self.board_widget.update() #draw move
 
@@ -313,17 +309,12 @@ class MainWindow(QMainWindow):
     def _start_new_game(self):
         board_size = self.size_spin.value()
         mode = self._get_current_mode()
-
-        self.computer_side = None
-        self.computer = None
-        computer_side = self._determine_computer_side()
-
-        if self.red_computer.isChecked() and self.blue_computer.isChecked():
-            return
-
-        self.computer_side = computer_side
-        if self.computer_side is not None:
-            self.computer = EasyComputerOpponent(self.computer_side)
+        #set computer
+        self.computers = {}
+        if self.red_computer.isChecked():
+            self.computers[Player.RED] = EasyComputerOpponent(Player.RED)
+        if self.blue_computer.isChecked():
+            self.computers[Player.BLUE] = EasyComputerOpponent(Player.BLUE)
 
         try:
             self.game = start_game(board_size=board_size, mode=mode)
@@ -334,15 +325,14 @@ class MainWindow(QMainWindow):
         self.board_widget.set_game(self.game)
         self._update_turn_label()
 
-        if self.computer and self.game.current_player == self.computer.side:
-            self._handle_computer_move()
+        self._handle_computer_move()
 
     #place s/o on clicked cell
     def _on_cell_clicked(self, row, col):
         if not self.game:
             return
 
-        if self.computer and self.game.current_player == self.computer.side:
+        if self._current_player_computer():
             return
 
         letter = self._get_current_player_letter()

@@ -1,6 +1,5 @@
 from abc import ABC, abstractmethod
 import random
-from typing import Tuple
 
 from sos_logic import BaseGame, Player
 
@@ -9,16 +8,16 @@ class ComputerOpponent(ABC):
         self.side = side
 
     @abstractmethod
-    def choose_move(self, board: BaseGame) -> Tuple[int, int, str]:
+    def choose_move(self, game: BaseGame) -> tuple[int, int, str]:
         ...
 
 class EasyComputerOpponent(ComputerOpponent):
-    def choose_move(self, game: BaseGame) -> Tuple[int, int, str]:
+    def choose_move(self, game: BaseGame) -> tuple[int, int, str]:
         board = game.board
         size = board.board_size
 
-        scoring_moves: list[Tuple[int, int, str]] = [] #store scoring moves
-        empty_cells: list[Tuple[int, int]] = []
+        scoring_moves: list[tuple[int, int, str]] = [] #store scoring moves
+        empty_cells: list[tuple[int, int]] = []
         original_player = game.current_player
         #loop through cells
         for row in range(size):
