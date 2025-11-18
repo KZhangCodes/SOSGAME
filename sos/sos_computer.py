@@ -18,22 +18,20 @@ class EasyComputerOpponent(ComputerOpponent):
 
         scoring_moves: list[tuple[int, int, str]] = [] #store scoring moves
         empty_cells: list[tuple[int, int]] = []
-        original_player = game.current_player
+
         #loop through cells
         for row in range(size):
             for col in range(size):
                 if board.is_empty(row, col):
                     empty_cells.append((row, col)) #track empty cells
-                    game.current_player = self.side
                     #line segment completion check
-                    s_line = len(game.new_lines_from_move(row, col, "S"))
+                    s_line = len(game.new_lines_from_move(row, col, "S", self.side))
                     if s_line > 0:
                         scoring_moves.append((row, col, "S"))
-                    o_line = len(game.new_lines_from_move(row, col, "O"))
+                    o_line = len(game.new_lines_from_move(row, col, "O", self.side))
                     if o_line > 0:
                         scoring_moves.append((row, col, "O"))
 
-        game.current_player = original_player
         #choose random scoring move
         if scoring_moves:
             return random.choice(scoring_moves)

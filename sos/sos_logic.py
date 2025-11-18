@@ -90,8 +90,6 @@ class Board:
         return self.grid[row][col]
 
     def place(self, row: int, col: int, letter: str) -> None:
-        if letter not in ("S", "O"):
-            raise InvalidLetterError("Letter must be S or O")
         if not self.in_bounds(row, col):
             raise OutOfBoundsError("Out of bounds")
         if self.grid[row][col] is not None:
@@ -135,6 +133,9 @@ class BaseGame(ABC):
     def _after_move(self, row: int,col: int, letter:str) -> None:
         ...
 
+    def get_lines(self) -> list[CompletedSOS]:
+        return list(self.lines)
+
     #append new sos lines and increment score
     def sos_line(self, new_lines: list[CompletedSOS]) -> None:
         if not new_lines:
@@ -146,8 +147,7 @@ class BaseGame(ABC):
         else:
             self.blue_score += scored
     #returns list of CompletedSOS segments with owner as current player
-    def new_lines_from_move(self, row: int, col: int, letter: str) -> list[CompletedSOS]:
-        player = self.current_player
+    def new_lines_from_move(self, row: int, col: int, letter: str, player: Player) -> list[CompletedSOS]:
         lines: list[CompletedSOS] = []
 
         directions = [(0, 1), (1, 0), (1, 1), (1, -1)] #horizontal, vert, diagonal, diagonal
@@ -182,7 +182,7 @@ class BaseGame(ABC):
 
 class SimpleGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
-        new_lines = self.new_lines_from_move(row, col, letter)
+        new_lines = self.new_lines_from_move(row, col, letter, self.current_player)
         self.sos_line(new_lines)
         #scoring simple
         if new_lines:
@@ -195,7 +195,7 @@ class SimpleGame(BaseGame):
 
 class GeneralGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
-        new_lines = self.new_lines_from_move(row, col, letter)
+        new_lines = self.new_lines_from_move(row, col, letter, self.current_player)
         self.sos_line(new_lines)
         #scoring general
         if self.board.is_full():

@@ -73,20 +73,24 @@ class GameBoard(QWidget):
         painter.setFont(font)
         for r in range(board_size): #value in position
             for c in range(board_size):
-                value = self._game.board.grid[r][c]
+                value = self._game.board.get_cell(r, c)
                 if value:
                     rect = QRect(margin + c * cell, margin + r * cell, cell, cell) #cell rectangle coord
                     painter.drawText(rect, Qt.AlignCenter, value)
 
     def _draw_sos_lines(self, painter: QPainter, cell: int, margin: int) ->None:
         #draw line for completed SOS
-        if not getattr(self._game, "lines", None):
+        if not self._game:
+            return
+
+        lines = self._game.get_lines()
+        if not lines:
             return
 
         line_pen = QPen()
         line_pen.setWidth(3)
         #color by owner
-        for segment in self._game.lines:
+        for segment in lines:
             if segment.player == Player.RED:
                 line_pen.setColor(Qt.red)
             elif segment.player == Player.BLUE:
