@@ -24,13 +24,14 @@ class Mode(StrEnum):
 
 MIN_N = 3
 MAX_N = 8
-Cell = str | None #cell s/o or empty
+Cell = str | None
+Coordinates = tuple[int, int]
 
 DEFAULT_STARTING_PLAYER = Player.RED
 
 #validations for separation of concerns (most constraint checks done by GUI)
 def validate_board_size(board_size: int) -> None:
-    if not isinstance(board_size, int): #int checking
+    if not isinstance(board_size, int):
         raise InvalidBoardSizeError("Board size invalid")
     if board_size < MIN_N:
         raise InvalidBoardSizeError("Board must be at least 3")
@@ -42,7 +43,7 @@ def validate_mode(mode: str | Mode) -> Mode:
         return mode
     if not isinstance(mode, str):
         raise InvalidGameModeError("Game mode must be string")
-    m = mode.strip().lower() #normalization
+    m = mode.strip().lower()
     try:
         return Mode(m)
     except ValueError:
@@ -59,13 +60,12 @@ def validate_letter(letter:str) -> str:
 #completed sos segment
 @dataclass(frozen=True)
 class CompletedSOS:
-    start: tuple[int, int] #endpoints
-    end: tuple[int, int]
-    player: Player #sos owner
+    start: Coordinates
+    end: Coordinates
+    player: Player
 
 @dataclass #__init__
 class Board:
-    #private
     board_size: int
     grid: list[list[Cell]] = field(init=False)
     #validate board, each none = empty cell for gui
@@ -126,7 +126,7 @@ class BaseGame(ABC):
         letter = validate_letter(letter)
         self.board.place(row, col, letter) #place letter
         self._after_move(row, col, letter)
-        if not self.is_over: #check if game is over
+        if not self.is_over:
             self._switch_turns()
 
     @abstractmethod
@@ -152,32 +152,34 @@ class BaseGame(ABC):
 
         directions = [(0, 1), (1, 0), (1, 1), (1, -1)] #horizontal, vert, diagonal, diagonal
 
-        def add_line(start: tuple[int, int], end: tuple[int, int]) -> None:
+        def add_line(start: Coordinates, end: Coordinates) -> None:
             lines.append(CompletedSOS(start, end, player))
 
         #placed O, must be in middle of SOS
         if letter == "O":
             for d_row, d_col in directions:
-                start_r, start_c = row - d_row, col - d_col
-                end_r, end_c = row + d_row, col + d_col
-                if self.board.in_bounds(start_r, start_c) and self.board.in_bounds(end_r, end_c):
-                    if self.board.get_cell(start_r, start_c) == "S" and self.board.get_cell(end_r, end_c) == "S":
-                            add_line((start_r, start_c), (end_r, end_c))
+                start = (row - d_row, col - d_col)
+                end = (row + d_row, col + d_col)
+                if not (self.board.in_bounds(*start) and self.board.in_bounds(*end)):
+                    continue
+                if self.board.get_cell(*start) == "S" and self.board.get_cell(*end) == "S":
+                    add_line(start, end)
         #placed S, must be at either end of SOS
-        elif letter == "S":
+        if letter == "S":
             for d_row, d_col in directions:
                 #S at start of SOS
-                mid_r, mid_c = row + d_row, col + d_col
-                end_r, end_c = row + 2 * d_row, col + 2 * d_col
-                if self.board.in_bounds(mid_r, mid_c) and self.board.in_bounds(end_r, end_c):
-                    if self.board.get_cell(mid_r, mid_c) == "O" and self.board.get_cell(end_r, end_c) == "S":
-                        add_line((row, col), (end_r, end_c))
+                mid = (row + d_row, col + d_col)
+                end = (row + 2 * d_row, col + 2 * d_col)
+                if self.board.in_bounds(*mid) and self.board.in_bounds(*end):
+                    if self.board.get_cell(*mid) == "O" and self.board.get_cell(*end) == "S":
+                        add_line((row, col), end)
                 #S at end SOS
-                start_r, start_c = row - 2 * d_row, col - 2 * d_col
-                mid_r2, mid_c2   = row - d_row,     col - d_col
-                if self.board.in_bounds(start_r, start_c) and self.board.in_bounds(mid_r2, mid_c2):
-                    if self.board.get_cell(mid_r2, mid_c2) == "O" and self.board.get_cell(start_r, start_c) == "S":
-                        add_line((start_r, start_c), (row, col))
+                start = (row - 2 * d_row, col - 2 * d_col)
+                mid_back = (row - d_row, col - d_col)
+                if not (self.board.in_bounds(*start) and self.board.in_bounds(*mid_back)):
+                    continue
+                if self.board.get_cell(*mid_back) == "O" and self.board.get_cell(*start) == "S":
+                    add_line(start, (row, col))
         return lines
 
 class SimpleGame(BaseGame):
@@ -199,20 +201,21 @@ class GeneralGame(BaseGame):
         self.sos_line(new_lines)
         #scoring general
         if self.board.is_full():
-            self.is_over = True
-            if self.red_score > self.blue_score:
-                self.winner = Player.RED
-            elif self.blue_score > self.red_score:
-                self.winner = Player.BLUE
-            else:
-                self.winner = None
+            return
+
+        self.is_over = True
+        if self.red_score > self.blue_score:
+            self.winner = Player.RED
+        elif self.blue_score > self.red_score:
+            self.winner = Player.BLUE
+        else:
+            self.winner = None
 
 def start_game(*, board_size: int, mode: str | Mode, starting_player: Player = DEFAULT_STARTING_PLAYER) -> BaseGame:
-    m = validate_mode(mode)
-    if m == Mode.SIMPLE:
+    validated_mode = validate_mode(mode)
+    if validated_mode == Mode.SIMPLE:
         return SimpleGame(board_size=board_size, starting_player=starting_player)
-    else:
-        return GeneralGame(board_size=board_size, starting_player=starting_player)
+    return GeneralGame(board_size=board_size, starting_player=starting_player)
 
 
 

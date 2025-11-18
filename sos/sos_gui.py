@@ -12,49 +12,47 @@ class GameBoard(QWidget):
 
     cell_clicked = pyqtSignal(int, int)
 
-    def __init__(self, parent=None):
+    def __init__(self, parent: QWidget | None = None) -> None:
         super().__init__(parent)
         self._game = None
         self._cell_size = 35
         self._margin = 5
         self._init_minimum_size()
-        #widget large enough for max size
-        #
 
-    def _init_minimum_size(self):
+    def _init_minimum_size(self) -> None:
         max_board_size = 8
         side = max_board_size * self._cell_size + 2 * self._margin
         self.setMinimumSize(side, side)
 
-    def _update_board_size(self):
+    def _update_board_size(self) -> None:
         if not self._game:
             return
         side = self._game.board_size * self._cell_size + 2 * self._margin
         self.setMinimumSize(side, side)
 
-    def set_game(self, game):
-        self._game = game #current game instance
+    def set_game(self, game) -> None:
+        self._game = game
         self._update_board_size()
         self.update() #repaint event, calls paintEvent()
 
-    def _board_geometry(self):
+    def _board_geometry(self) -> tuple[int, int, int, int]:
         board_size = self._game.board_size
-        cell = self._cell_size
+        cell_size = self._cell_size
         margin = self._margin
-        size = board_size * cell
-        return board_size, cell, margin, size
+        size = board_size * cell_size
+        return board_size, cell_size, margin, size
 
-    def paintEvent(self, event):
+    def paintEvent(self, event) -> None:
         if not self._game:
             return
         painter = QPainter(self)
         board_size, cell, margin, size = self._board_geometry()
 
-        self._draw_border_grid(painter, board_size, cell, margin, size)
+        self._draw_grid(painter, board_size, cell, margin, size)
         self._draw_letters(painter, board_size, cell, margin)
         self._draw_sos_lines(painter, cell, margin)
 
-    def _draw_border_grid(self, painter: QPainter, board_size: int, cell: int, margin: int, size: int) ->None:
+    def _draw_grid(self, painter: QPainter, board_size: int, cell: int, margin: int, size: int) ->None:
         pen = QPen(Qt.black)
         pen.setWidth(1)
         painter.setPen(pen)
@@ -71,30 +69,31 @@ class GameBoard(QWidget):
         font = QFont()
         font.setPointSize(18)
         painter.setFont(font)
-        for r in range(board_size): #value in position
-            for c in range(board_size):
-                value = self._game.board.get_cell(r, c)
+        for row in range(board_size): #value in position
+            for col in range(board_size):
+                value = self._game.board.get_cell(row, col)
                 if value:
-                    rect = QRect(margin + c * cell, margin + r * cell, cell, cell) #cell rectangle coord
+                    rect = QRect(margin + col * cell, margin + row * cell, cell, cell) #cell rectangle coord
                     painter.drawText(rect, Qt.AlignCenter, value)
 
     def _draw_sos_lines(self, painter: QPainter, cell: int, margin: int) ->None:
-        #draw line for completed SOS
         if not self._game:
             return
 
-        lines = self._game.get_lines()
-        if not lines:
+        segments = self._game.get_lines()
+        if not segments:
             return
 
         line_pen = QPen()
         line_pen.setWidth(3)
         #color by owner
-        for segment in lines:
+        for segment in segments:
             if segment.player == Player.RED:
                 line_pen.setColor(Qt.red)
             elif segment.player == Player.BLUE:
                 line_pen.setColor(Qt.blue)
+            else:
+                continue
             painter.setPen(line_pen)
 
             #grid coords to pixel center
@@ -107,24 +106,28 @@ class GameBoard(QWidget):
 
             painter.drawLine(x1, y1, x2, y2)
 
-    #mouse1 placement
-    def mousePressEvent(self, event):
-        if not self._game or event.button() != Qt.LeftButton:
+    def mousePressEvent(self, event) -> None:
+        if not self._game:
             return
-        cell = self._cell_size
-        margin = self._margin
-        x = event.x() - margin
-        y = event.y() - margin
+        if event.button == Qt.LeftButton:
+            return
+
+        x = event.x() - self._margin
+        y = event.y() - self._margin
+
         if x < 0 or y < 0:
             return
-        col = x // cell
-        row = y // cell
-        if 0 <= row < self._game.board_size and 0 <= col < self._game.board_size:
-            self.cell_clicked.emit(row,col)
+        col = x // self._cell_size
+        row = y // self._cell_size
+
+        if not (0 <= row < self._game.board_size and 0 <= col < self._game.board_size):
+            return
+
+        self.cell_clicked.emit(row,col)
 
 #main app window
 class MainWindow(QMainWindow):
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
         self.game = None #hold current game instance
 
@@ -136,10 +139,10 @@ class MainWindow(QMainWindow):
         self._signals()
         self._start_new_game()
 
-    def _setup_window(self):
+    def _setup_window(self) -> None:
         self.setWindowTitle("SOS Game")
 
-    def _create_widget(self):
+    def _create_widget(self) -> None:
         self.mode_box = self._create_mode_box()
         self.size_box = self._create_size_box()
         self.new_button = QPushButton("Start new game")
@@ -151,10 +154,10 @@ class MainWindow(QMainWindow):
         self.blue_s.setChecked(True)
         self.red_human.setChecked(True)
         self.blue_human.setChecked(True)
-        self.turn_label = QLabel("Current turn: —") #current turn label
+        self.turn_label = QLabel("Current turn: —")
         self.turn_label.setAlignment(Qt.AlignCenter)
 
-    def _create_layout(self):
+    def _create_layout(self) -> None:
         top_row = self._build_top_row()
         side_row = self._build_side_row()
 
@@ -165,13 +168,12 @@ class MainWindow(QMainWindow):
         root_layout.addWidget(self.turn_label)
         self.setCentralWidget(root)
 
-    def _signals(self):
+    def _signals(self) -> None:
         self.new_button.clicked.connect(self._start_new_game) #add start_new_game method
         self.board_widget.cell_clicked.connect(self._on_cell_clicked)
 
     def _create_mode_box(self) -> QGroupBox:
         mode_box = QGroupBox("Game mode")
-        #game mode radios
         self.mode_simple = QRadioButton("Simple Mode")
         self.mode_general = QRadioButton("General Mode")
         self.mode_simple.setChecked(True) #default simple
@@ -213,7 +215,7 @@ class MainWindow(QMainWindow):
         return side_row
 
     #s/o selection
-    def _create_player_box(self, title):
+    def _create_player_box(self, title) -> tuple[QGroupBox, QRadioButton, QRadioButton, QRadioButton, QRadioButton]:
         box = QGroupBox(title)
 
         human_radio = QRadioButton("Human")
@@ -256,13 +258,14 @@ class MainWindow(QMainWindow):
             return "S"
         if self.game.current_player == Player.RED:
             return "S" if self.red_s.isChecked() else "O"
-        else:
-            return "S" if self.blue_s.isChecked() else "O"
+        return "S" if self.blue_s.isChecked() else "O"
 
     def _update_turn_label(self):
         if not self.game:
             self.turn_label.setText("Current turn: —")
-        elif self.game.current_player == Player.RED:
+            return
+
+        if self.game.current_player == Player.RED:
             self.turn_label.setText("Current turn: Red ")
         else:
             self.turn_label.setText("Current turn: Blue")
@@ -295,14 +298,13 @@ class MainWindow(QMainWindow):
 
         while not self.game.is_over and moves_left > 0:
             computer = self.computers.get(self.game.current_player) #check if current player is computer
-            if computer is None: #stop if current player is not computer
+            if computer is None:
                 break
-            #choose move and place
             row, col, letter = computer.choose_move(self.game)
             self.game.place_letter(row, col, letter)
             moves_left -= 1
 
-        self.board_widget.update() #draw move
+        self.board_widget.update()
 
         if self.game.is_over:
             self._game_over_dialog()
@@ -328,10 +330,8 @@ class MainWindow(QMainWindow):
 
         self.board_widget.set_game(self.game)
         self._update_turn_label()
-
         self._handle_computer_move()
 
-    #place s/o on clicked cell
     def _on_cell_clicked(self, row, col):
         if not self.game:
             return
@@ -350,12 +350,13 @@ class MainWindow(QMainWindow):
             return
 
         self.board_widget.update() #redraw board
-        #game over and score popup
+
         if self.game.is_over:
             self._game_over_dialog()
-        else:
-            self._update_turn_label()
-            self._handle_computer_move()
+            return
+
+        self._update_turn_label()
+        self._handle_computer_move()
 
 
 
