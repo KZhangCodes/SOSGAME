@@ -1,4 +1,5 @@
 import unittest
+import random
 
 from sos_logic import (start_game, Mode, Player, InvalidMoveError, InvalidLetterError)
 from sos_computer import EasyComputerOpponent
@@ -78,3 +79,62 @@ class TestGeneralPlayerComputer(unittest.TestCase):
             self.game.blue_score,
             sum(1 for seg in self.game.lines if seg.player == Player.BLUE),
         )
+
+#user story 10: computer opponent vs computer opponent in simple game
+class TestComputerComputerSimple(unittest.TestCase):
+    #ac 10.1
+    def test_computer_computer_simple(self):
+        random.seed(0)
+        game = start_game(board_size=3, mode=Mode.SIMPLE, starting_player=Player.RED)
+        computers = {
+            Player.RED: EasyComputerOpponent(Player.RED),
+            Player.BLUE: EasyComputerOpponent(Player.BLUE),
+        }
+
+        moves_left = game.board_size * game.board_size
+        turns = []
+
+        while not game.is_over and moves_left > 0:
+            current = game.current_player
+            turns.append(current)
+            comp = computers[current]
+            row, col, letter = comp.choose_move(game)
+            self.assertIn(letter, ("S", "O"))
+            game.place_letter(row, col, letter)
+            moves_left -= 1
+        #game over on first sos or full board
+        self.assertTrue(game.is_over)
+        #check alternating
+        for i in range(len(turns) - 1):
+            self.assertNotEqual(turns[i], turns[i + 1])
+
+#user story 11: computer opponent vs computer opponent in simple game
+class TestComputerComputerGeneral(unittest.TestCase):
+    #ac 11.1
+    def test_computer_computer_general(self):
+        random.seed(0)
+        game = start_game(board_size=3, mode=Mode.GENERAL, starting_player=Player.RED)
+        computers = {
+            Player.RED: EasyComputerOpponent(Player.RED),
+            Player.BLUE: EasyComputerOpponent(Player.BLUE),
+        }
+
+        moves_left = game.board_size * game.board_size
+        turns = []
+
+        while not game.is_over and moves_left > 0:
+            current = game.current_player
+            turns.append(current)
+
+            comp = computers[current]
+            row, col, letter = comp.choose_move(game)
+            self.assertIn(letter, ("S", "O"))
+
+            game.place_letter(row, col, letter)
+            moves_left -= 1
+        #full board
+        self.assertTrue(game.is_over)
+        self.assertTrue(game.board.is_full())
+        #alternate turns
+        for i in range(len(turns) - 1):
+            self.assertNotEqual(turns[i], turns[i + 1])
