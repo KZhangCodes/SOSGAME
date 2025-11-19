@@ -109,7 +109,7 @@ class GameBoard(QWidget):
     def mousePressEvent(self, event) -> None:
         if not self._game:
             return
-        if event.button == Qt.LeftButton:
+        if event.button() != Qt.LeftButton:
             return
 
         x = event.x() - self._margin
@@ -120,7 +120,8 @@ class GameBoard(QWidget):
         col = x // self._cell_size
         row = y // self._cell_size
 
-        if not (0 <= row < self._game.board_size and 0 <= col < self._game.board_size):
+        board_size = self._game.board.board_size
+        if not (0 <= row < board_size and 0 <= col < board_size):
             return
 
         self.cell_clicked.emit(row,col)
