@@ -199,17 +199,16 @@ class GeneralGame(BaseGame):
     def _after_move(self, row: int, col: int, letter:str) -> None:
         new_lines = self.new_lines_from_move(row, col, letter, self.current_player)
         self.sos_line(new_lines)
-        #scoring general
-        if self.board.is_full():
-            return
 
-        self.is_over = True
-        if self.red_score > self.blue_score:
-            self.winner = Player.RED
-        elif self.blue_score > self.red_score:
-            self.winner = Player.BLUE
-        else:
-            self.winner = None
+        if self.board.is_full():
+            self.is_over = True
+            if self.red_score > self.blue_score:
+                self.winner = Player.RED
+            elif self.blue_score > self.red_score:
+                self.winner = Player.BLUE
+            else:
+                self.winner = None
+            return
 
 def start_game(*, board_size: int, mode: str | Mode, starting_player: Player = DEFAULT_STARTING_PLAYER) -> BaseGame:
     validated_mode = validate_mode(mode)

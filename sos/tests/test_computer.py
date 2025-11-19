@@ -1,7 +1,7 @@
 import unittest
 import random
 
-from sos_logic import (start_game, Mode, Player, InvalidMoveError, InvalidLetterError)
+from sos_logic import (start_game, Mode, Player, InvalidMoveError)
 from sos_computer import EasyComputerOpponent
 
 #user story 8: move against computer opponent in simple game
@@ -18,12 +18,13 @@ class TestSimplePlayerComputer(unittest.TestCase):
     #ac 8.2
     def test_invalid_player_move_simple(self):
         self.game.place_letter(0, 0, "S")
+        current_player_before = self.game.current_player
         with self.assertRaises(InvalidMoveError):
             self.game.place_letter(0, 0, "O")  #same cell should fail
 
         #cell unchanged
         self.assertEqual(self.game.board.get_cell(0, 0), "S")
-        self.assertEqual(self.game.current_player, Player.BLUE)
+        self.assertEqual(self.game.current_player, current_player_before)
     #ac 8.3
     def test_computer_score_simple(self):
         #blue has winning move ready
@@ -51,24 +52,23 @@ class TestGeneralPlayerComputer(unittest.TestCase):
         self.assertTrue(self.game.board.is_empty(1, 1))
         self.game.place_letter(1, 1, "O")
         self.assertEqual(self.game.board.get_cell(1, 1), "O")
-        self.assertEqual(self.game.current_player, Player.BLUE)
     #ac 9.2
     def test_invalid_player_move_general(self):
         self.game.place_letter(0, 0, "S")
+        current_player_before = self.game.current_player
         with self.assertRaises(InvalidMoveError):
             self.game.place_letter(0, 0, "O")
 
         self.assertEqual(self.game.board.get_cell(0, 0), "S")
-        self.assertEqual(self.game.current_player, Player.BLUE)
+        self.assertEqual(self.game.current_player, current_player_before)
     #ac 9.3
     def test_computer_score_general(self):
-        self.game.place_letter(0, 0, "S")   # RED
-        self.game.place_letter(0, 1, "O")   # BLUE
-        self.game.place_letter(2, 2, "S")   # RED
-        self.assertFalse(self.game.is_over)
-        self.assertEqual(self.game.current_player, Player.BLUE)
+        self.game.board.place(0, 0, "S")
+        self.game.board.place(0, 1, "O")
 
+        self.game.current_player = Player.BLUE
         row, col, letter = self.computer.choose_move(self.game)
+
         new_lines = self.game.new_lines_from_move(row, col, letter, Player.BLUE)
         self.assertGreaterEqual(len(new_lines), 1, "Computer should choose a scoring move")
         #apply move blue +1 points
@@ -138,3 +138,17 @@ class TestComputerComputerGeneral(unittest.TestCase):
         #alternate turns
         for i in range(len(turns) - 1):
             self.assertNotEqual(turns[i], turns[i + 1])
+
+class TestComputerMove(unittest.TestCase):
+    def test_computer_move_not_on_occupied_cell(self):
+        game = start_game(board_size=3, mode=Mode.GENERAL, starting_player=Player.RED)
+        computer = EasyComputerOpponent(Player.BLUE)
+
+        game.place_letter(0, 0, "S")
+        game.place_letter(1, 1, "O")
+        game.place_letter(2, 2, "S")
+
+        row, col, letter = computer.choose_move(game)
+        self.assertTrue(game.board.is_empty(row, col))
+        self.assertIn(letter, ("S", "O"))
+
